@@ -7,8 +7,17 @@
 // using namespace std
 using namespace std;
 
+// functions
+void changeBackgroundColor(int r, int g, int b); // changes background color
+void changeDisplay(int id); // changes currently selected display to the button id textur
+void clearScreen();
 void changeDisplay(int id);
-int currentScreen = 0;
+void init();
+void loadMedia();
+void close();
+void handleButtonEvents(SDL_Event e);
+void displayButtonTextures();
+int parseEquation(string equation, int &result);
 
 // screen dimensions
 const int SCREEN_WIDTH = 750;
@@ -25,30 +34,11 @@ SDL_Window* window = NULL;
 // the renderer
 SDL_Renderer* renderer = NULL;
 
-// textures
-SDL_Texture* emptyT = NULL;
-SDL_Texture* oneT = NULL;
-SDL_Texture* twoT = NULL;
-SDL_Texture* threeT = NULL;
-SDL_Texture* fourT = NULL;
-SDL_Texture* fiveT = NULL;
-SDL_Texture* sixT = NULL;
-SDL_Texture* sevenT = NULL;
-SDL_Texture* eightT = NULL;
-SDL_Texture* nineT = NULL;
-SDL_Texture* zeroT = NULL;
-SDL_Texture* minusSignT = NULL;
-SDL_Texture* plusSignT = NULL;
-SDL_Texture* multiplyT = NULL;
-SDL_Texture* clearT = NULL;
-SDL_Texture* equalsT = NULL;
+// screen variables
+int currentScreen;
+string currentString;
 
-void changeBackgroundColor(int r, int g, int b) {
-	backgroundR = r;
-	backgroundG = g;
-	backgroundB = b;
-}
-
+// button class
 class Button {
   public:
 	int xpos;
@@ -189,6 +179,25 @@ class Button {
 	}
 };
 
+// textures
+SDL_Texture* emptyT = NULL;
+SDL_Texture* oneT = NULL;
+SDL_Texture* twoT = NULL;
+SDL_Texture* threeT = NULL;
+SDL_Texture* fourT = NULL;
+SDL_Texture* fiveT = NULL;
+SDL_Texture* sixT = NULL;
+SDL_Texture* sevenT = NULL;
+SDL_Texture* eightT = NULL;
+SDL_Texture* nineT = NULL;
+SDL_Texture* zeroT = NULL;
+SDL_Texture* minusSignT = NULL;
+SDL_Texture* plusSignT = NULL;
+SDL_Texture* multiplyT = NULL;
+SDL_Texture* clearT = NULL;
+SDL_Texture* equalsT = NULL;
+
+// button declarations
 Button displayOne;
 Button displayTwo;
 Button displayThree;
@@ -197,15 +206,15 @@ Button displayFive;
 Button displaySix;
 Button displaySeven;
 
-Button seven;
-Button eight;
-Button nine;
-Button four;
-Button five;
-Button six;
 Button one;
 Button two;
 Button three;
+Button four;
+Button five;
+Button six;
+Button seven;
+Button eight;
+Button nine;
 Button zero;
 Button plusSign;
 Button minusSign;
@@ -214,7 +223,11 @@ Button multiply;
 Button clear;
 Button equalsSign;
 
-string currentString;
+void changeBackgroundColor(int r, int g, int b) {
+	backgroundR = r;
+	backgroundG = g;
+	backgroundB = b;
+}
 
 void clearScreen() {
 	displayOne.loadTexture(emptyT);
@@ -224,7 +237,6 @@ void clearScreen() {
 	displayFive.loadTexture(emptyT);
 	displaySix.loadTexture(emptyT);
 	displaySeven.loadTexture(emptyT);
-	currentScreen = 0;
 	currentScreen = 0;
 	currentString = "";
 }
@@ -884,7 +896,7 @@ void changeDisplay(int id) {
 	}
 }
 
-int main(int argc, char* args[]) {
+void init() {
 	// initialize SDL
 	SDL_Init(SDL_INIT_VIDEO);
 	
@@ -897,11 +909,46 @@ int main(int argc, char* args[]) {
 	// initialize renderer color
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 	
+    currentScreen = 0;
+    
 	// initialize PNG loading
 	int imgFlags = IMG_INIT_PNG;
 	IMG_Init(imgFlags);
+    
+    // set middle button x and y
+	int middleX = SCREEN_WIDTH/2 - 50;
+	int middleY = SCREEN_HEIGHT/2 - 50;
 	
-	// create tempSurface
+    // initialize buttons
+	zero.init(middleX, middleY + 250, 100, 100, 150, 0, 0x00, 0);
+	one.init(middleX - 125, middleY + 125, 100, 100, 0x00, 150, 150, 1);
+	two.init(middleX, middleY + 125, 100, 100, 0x00, 150, 0x00, 2);
+	three.init(middleX + 125, middleY + 125, 100, 100, 0x00, 150, 0x00, 3);
+	four.init(middleX - 125, middleY, 100, 100, 0x00, 150, 0x00, 4);
+	five.init(middleX, middleY, 100, 100, 0x00, 0, 150, 5);
+	six.init(middleX + 125, middleY, 100, 100, 0x00, 150, 0x00, 6);
+	seven.init(middleX - 125, middleY - 125, 100, 100, 0x00, 150, 0x00, 7);
+	eight.init(middleX, middleY - 125, 100, 100, 0x00, 150, 0x00, 8);
+	nine.init(middleX + 125, middleY - 125, 100, 100, 0x00, 150, 0x00, 9);
+
+	minusSign.init(middleX + 250, middleY, 100, 100, 0x00, 150, 0x00, 10);
+	plusSign.init(middleX + 250, middleY + 125, 100, 100, 0x00, 150, 0x00, 11);
+	multiply.init(middleX + 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 12);
+
+	displayOne.init(middleX - 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 13);
+	displayTwo.init(middleX - 200, middleY - 250, 100, 100, 0x00, 150, 0x00, 14);
+	displayThree.init(middleX - 100, middleY - 250, 100, 100, 0x00, 150, 0x00, 15);
+	displayFour.init(middleX, middleY - 250, 100, 100, 0x00, 150, 0x00, 16);
+	displayFive.init(middleX + 100, middleY - 250, 100, 100, 0x00, 150, 0x00, 17);
+	displaySix.init(middleX + 200, middleY - 250, 100, 100, 0x00, 150, 0x00, 18);
+	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 19);
+	
+	clear.init(middleX - 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 20);
+	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 0x00, 150, 0x00, 21);
+}
+
+void loadMedia() {
+    // create tempSurface
 	SDL_Surface* tempSurface;
 	
 	// initialize textures
@@ -940,41 +987,7 @@ int main(int argc, char* args[]) {
 	
 	// free tempSurface
 	SDL_FreeSurface(tempSurface);
-	
-	// event handler
-	SDL_Event e;
-	
-	int middleX = SCREEN_WIDTH/2 - 50;
-	int middleY = SCREEN_HEIGHT/2 - 50;
-	
-	zero.init(middleX, middleY + 250, 100, 100, 0x00, 150, 0x00, 0);
-	one.init(middleX - 125, middleY + 125, 100, 100, 0x00, 150, 0x00, 1);
-	two.init(middleX, middleY + 125, 100, 100, 0x00, 150, 0x00, 2);
-	three.init(middleX + 125, middleY + 125, 100, 100, 0x00, 150, 0x00, 3);
-	four.init(middleX - 125, middleY, 100, 100, 0x00, 150, 0x00, 4);
-	five.init(middleX, middleY, 100, 100, 0x00, 150, 0x00, 5);
-	six.init(middleX + 125, middleY, 100, 100, 0x00, 150, 0x00, 6);
-	seven.init(middleX - 125, middleY - 125, 100, 100, 0x00, 150, 0x00, 7);
-	eight.init(middleX, middleY - 125, 100, 100, 0x00, 150, 0x00, 8);
-	nine.init(middleX + 125, middleY - 125, 100, 100, 0x00, 150, 0x00, 9);
-
-	minusSign.init(middleX + 250, middleY, 100, 100, 0x00, 150, 0x00, 10);
-	plusSign.init(middleX + 250, middleY + 125, 100, 100, 0x00, 150, 0x00, 11);
-	multiply.init(middleX + 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 12);
-
-	displayOne.init(middleX - 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 13);
-	displayTwo.init(middleX - 200, middleY - 250, 100, 100, 0x00, 150, 0x00, 14);
-	displayThree.init(middleX - 100, middleY - 250, 100, 100, 0x00, 150, 0x00, 15);
-	displayFour.init(middleX, middleY - 250, 100, 100, 0x00, 150, 0x00, 16);
-	displayFive.init(middleX + 100, middleY - 250, 100, 100, 0x00, 150, 0x00, 17);
-	displaySix.init(middleX + 200, middleY - 250, 100, 100, 0x00, 150, 0x00, 18);
-	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 19);
-	
-	clear.init(middleX - 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 20);
-	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 0x00, 150, 0x00, 21);
-
-	changeBackgroundColor(200, 200, 200);
-
+    
 	// load initial display textures
 	displayOne.loadTexture(emptyT);
 	displayTwo.loadTexture(emptyT);
@@ -983,86 +996,28 @@ int main(int argc, char* args[]) {
 	displayFive.loadTexture(emptyT);
 	displaySix.loadTexture(emptyT);
 	displaySeven.loadTexture(emptyT);
+    
+    // load button textures
+    one.loadTexture(oneT);
+    two.loadTexture(twoT);
+    three.loadTexture(threeT);
+    four.loadTexture(fourT);
+    five.loadTexture(fiveT);
+    six.loadTexture(sixT);
+    seven.loadTexture(sevenT);
+    eight.loadTexture(eightT);
+    nine.loadTexture(nineT);
+    zero.loadTexture(zeroT);
+    plusSign.loadTexture(plusSignT);
+    minusSign.loadTexture(minusSignT);
+    multiply.loadTexture(multiplyT);
+    clear.loadTexture(clearT);
+    equalsSign.loadTexture(equalsT);
+}
 
-	bool running = true;
-	
-	// while app is running
-	while (running) {
-		// handle events on queue
-		while (SDL_PollEvent(&e) != 0) {
-			// if user requests quit
-			if (e.type == SDL_QUIT) {
-				running = false;
-			}
-			
-			one.handleEvent(&e);
-			two.handleEvent(&e);
-			three.handleEvent(&e);
-			four.handleEvent(&e);
-			five.handleEvent(&e);
-			six.handleEvent(&e);
-			seven.handleEvent(&e);
-			eight.handleEvent(&e);
-			nine.handleEvent(&e);
-			zero.handleEvent(&e);
-			plusSign.handleEvent(&e);
-			minusSign.handleEvent(&e);
-			multiply.handleEvent(&e);
-			clear.handleEvent(&e);
-			equalsSign.handleEvent(&e);
-		}
-		
-		// fill the surface white
-		SDL_SetRenderDrawColor(renderer, backgroundR, backgroundG, backgroundB, 0xFF);
-		SDL_RenderClear(renderer);
-		
-		// load button textures
-		one.loadTexture(oneT);
-		two.loadTexture(twoT);
-		three.loadTexture(threeT);
-		four.loadTexture(fourT);
-		five.loadTexture(fiveT);
-		six.loadTexture(sixT);
-		seven.loadTexture(sevenT);
-		eight.loadTexture(eightT);
-		nine.loadTexture(nineT);
-		zero.loadTexture(zeroT);
-		plusSign.loadTexture(plusSignT);
-		minusSign.loadTexture(minusSignT);
-		multiply.loadTexture(multiplyT);
-		clear.loadTexture(clearT);
-		equalsSign.loadTexture(equalsT);
-		
-		// display textures
-		displayOne.displayTexture();
-		displayTwo.displayTexture();
-		displayThree.displayTexture();
-		displayFour.displayTexture();
-		displayFive.displayTexture();
-		displaySix.displayTexture();
-		displaySeven.displayTexture();
-		
-		one.displayTexture();
-		two.displayTexture();
-		three.displayTexture();
-		four.displayTexture();
-		five.displayTexture();
-		six.displayTexture();
-		seven.displayTexture();
-		eight.displayTexture();
-		nine.displayTexture();
-		zero.displayTexture();;
-		plusSign.displayTexture();
-		minusSign.displayTexture();
-		multiply.displayTexture();
-		clear.displayTexture();
-		equalsSign.displayTexture();
-		
-		// update the surface
-		SDL_RenderPresent(renderer);
-	}
-	
-	// free resources
+void close() {
+    // free resources
+    SDL_DestroyTexture(emptyT);
 	SDL_DestroyTexture(oneT);
 	SDL_DestroyTexture(twoT);
 	SDL_DestroyTexture(threeT);
@@ -1079,9 +1034,95 @@ int main(int argc, char* args[]) {
 	SDL_DestroyTexture(clearT);
 	SDL_DestroyTexture(equalsT);
 	
+    // destroy window and renderer
 	SDL_DestroyWindow(window);
 	SDL_DestroyRenderer(renderer);
-	SDL_Quit();
+    
+    // exit SDL subystems
+    IMG_Quit();
+}
+
+void handleButtonEvents(SDL_Event e) {
+    one.handleEvent(&e);
+    two.handleEvent(&e);
+    three.handleEvent(&e);
+    four.handleEvent(&e);
+    five.handleEvent(&e);
+    six.handleEvent(&e);
+    seven.handleEvent(&e);
+    eight.handleEvent(&e);
+    nine.handleEvent(&e);
+    zero.handleEvent(&e);
+    plusSign.handleEvent(&e);
+    minusSign.handleEvent(&e);
+    multiply.handleEvent(&e);
+    clear.handleEvent(&e);
+    equalsSign.handleEvent(&e);
+}
+
+void displayButtonTextures() {
+    // display textures
+    displayOne.displayTexture();
+    displayTwo.displayTexture();
+    displayThree.displayTexture();
+    displayFour.displayTexture();
+    displayFive.displayTexture();
+    displaySix.displayTexture();
+    displaySeven.displayTexture();
+    
+    one.displayTexture();
+    two.displayTexture();
+    three.displayTexture();
+    four.displayTexture();
+    five.displayTexture();
+    six.displayTexture();
+    seven.displayTexture();
+    eight.displayTexture();
+    nine.displayTexture();
+    zero.displayTexture();;
+    plusSign.displayTexture();
+    minusSign.displayTexture();
+    multiply.displayTexture();
+    clear.displayTexture();
+    equalsSign.displayTexture();
+}
+
+int main(int argc, char* args[]) {
+    init();
+    
+    loadMedia();
+	
+	// event handler
+	SDL_Event e;
+
+	changeBackgroundColor(200, 200, 200);
+
+	bool running = true;
+	
+	// while app is running
+	while (running) {
+		// handle events on queue
+		while (SDL_PollEvent(&e) != 0) {
+			// if user requests quit
+			if (e.type == SDL_QUIT) {
+				running = false;
+			}
+			
+            handleButtonEvents(e);
+		}
+		
+		// fill the surface white
+		SDL_SetRenderDrawColor(renderer, backgroundR, backgroundG, backgroundB, 0xFF);
+		SDL_RenderClear(renderer);
+		
+        // display textures
+        displayButtonTextures();
+		
+		// update the surface
+		SDL_RenderPresent(renderer);
+	}
+	
+    close();
 	
 	return 0;
 }
