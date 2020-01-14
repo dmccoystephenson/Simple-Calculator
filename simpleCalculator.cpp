@@ -40,6 +40,7 @@ SDL_Texture* zeroT = NULL;
 SDL_Texture* minusSignT = NULL;
 SDL_Texture* plusSignT = NULL;
 SDL_Texture* multiplyT = NULL;
+SDL_Texture* clearT = NULL;
 
 void changeBackgroundColor(int r, int g, int b) {
 	backgroundR = r;
@@ -209,8 +210,71 @@ Button plusSign;
 Button minusSign;
 Button multiply;
 
+Button clear;
+
 void changeDisplay(int id) {
 	switch(id) {
+		// if user clicks on clear button
+		case 20:
+			displayOne.loadTexture(emptyT);
+			displayTwo.loadTexture(emptyT);
+			displayThree.loadTexture(emptyT);
+			displayFour.loadTexture(emptyT);
+			displayFive.loadTexture(emptyT);
+			displaySix.loadTexture(emptyT);
+			displaySeven.loadTexture(emptyT);
+			currentScreen = 0;
+			break;
+
+		// if user clicks on plus button
+		case 11:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+
+		// if user clicks on zero button
 		case 0:
 			switch(currentScreen) {
 				case 0:
@@ -251,6 +315,100 @@ void changeDisplay(int id) {
 					break;
 				case 6:
 					displaySeven.loadTexture(zeroT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on one button
+		case 1:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(oneT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(oneT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(oneT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(oneT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(oneT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(oneT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(oneT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on two button
+		case 2:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(twoT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(twoT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(twoT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(twoT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(twoT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(twoT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(twoT);
 					if (currentScreen < 6) {
 						currentScreen++;
 					}
@@ -302,12 +460,14 @@ int main(int argc, char* args[]) {
 	nineT = SDL_CreateTextureFromSurface(renderer, tempSurface);
 	tempSurface = IMG_Load("zero.png");
 	zeroT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("minusSign.png");
+	tempSurface = IMG_Load("minus.png");
 	minusSignT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("plusSign.png");
+	tempSurface = IMG_Load("plus.png");
 	plusSignT = SDL_CreateTextureFromSurface(renderer, tempSurface);
 	tempSurface = IMG_Load("multiply.png");
 	multiplyT = SDL_CreateTextureFromSurface(renderer, tempSurface);
+	tempSurface = IMG_Load("clear.png");
+	clearT = SDL_CreateTextureFromSurface(renderer, tempSurface);
 	
 	// free tempSurface
 	SDL_FreeSurface(tempSurface);
@@ -340,6 +500,8 @@ int main(int argc, char* args[]) {
 	displayFive.init(middleX + 100, middleY - 250, 100, 100, 0x00, 150, 0x00, 17);
 	displaySix.init(middleX + 200, middleY - 250, 100, 100, 0x00, 150, 0x00, 18);
 	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 19);
+	
+	clear.init(middleX - 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 20);
 
 	changeBackgroundColor(200, 200, 200);
 
@@ -376,6 +538,7 @@ int main(int argc, char* args[]) {
 			plusSign.handleEvent(&e);
 			minusSign.handleEvent(&e);
 			multiply.handleEvent(&e);
+			clear.handleEvent(&e);
 		}
 		
 		// fill the surface white
@@ -396,6 +559,7 @@ int main(int argc, char* args[]) {
 		plusSign.loadTexture(plusSignT);
 		minusSign.loadTexture(minusSignT);
 		multiply.loadTexture(multiplyT);
+		clear.loadTexture(clearT);
 		
 		// display textures
 		displayOne.displayTexture();
@@ -419,6 +583,7 @@ int main(int argc, char* args[]) {
 		plusSign.displayTexture();
 		minusSign.displayTexture();
 		multiply.displayTexture();
+		clear.displayTexture();
 		
 		// update the surface
 		SDL_RenderPresent(renderer);
@@ -426,6 +591,10 @@ int main(int argc, char* args[]) {
 	
 	// free resources
 	SDL_DestroyTexture(oneT);
+	SDL_DestroyTexture(twoT);
+	SDL_DestroyTexture(threeT);
+	SDL_DestroyTexture(fourT);
+	// TODO: free rest
 	
 	SDL_DestroyWindow(window);
 	SDL_DestroyRenderer(renderer);
