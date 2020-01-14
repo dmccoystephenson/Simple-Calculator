@@ -41,6 +41,7 @@ SDL_Texture* minusSignT = NULL;
 SDL_Texture* plusSignT = NULL;
 SDL_Texture* multiplyT = NULL;
 SDL_Texture* clearT = NULL;
+SDL_Texture* equalsT = NULL;
 
 void changeBackgroundColor(int r, int g, int b) {
 	backgroundR = r;
@@ -211,23 +212,64 @@ Button minusSign;
 Button multiply;
 
 Button clear;
+Button equalsSign;
+
+string currentString;
+
+void clearScreen() {
+	displayOne.loadTexture(emptyT);
+	displayTwo.loadTexture(emptyT);
+	displayThree.loadTexture(emptyT);
+	displayFour.loadTexture(emptyT);
+	displayFive.loadTexture(emptyT);
+	displaySix.loadTexture(emptyT);
+	displaySeven.loadTexture(emptyT);
+	currentScreen = 0;
+	currentScreen = 0;
+}
 
 void changeDisplay(int id) {
 	switch(id) {
+		// if user clicks on equals button
+		case 21:
+			clearScreen();
+			if (currentString[0] == '+' || currentString[0] == '-' || currentString[0] == '*') {
+				for (size_t i = 0; i < 7; i++) {
+					changeDisplay(0);
+				}
+			}
+			else {
+				char char1 = 'z';
+				char1 = currentString[0];
+				int num1 = 0;
+				if (char1 == '0' || char1 == '1' || char1 == '2' || char1 == '3' || char1 == '4' ||
+					char1 == '5' || char1 == '6' || char1 == '7' || char1 == '8' || char1 == '9') {
+					string temp = "" + char1;
+					num1 = atoi(temp.c_str());
+				}
+				char char2 = 'z';
+				char2 = currentString[1];
+				int num2 = 0;
+				if (char2 == '0' || char2 == '1' || char2 == '2' || char2 == '3' || char2 == '4' ||
+					char2 == '5' || char2 == '6' || char2 == '7' || char2 == '8' || char2 == '9') {
+					string temp = "" + char2;
+					num2 = atoi(temp.c_str());
+				}
+				else {
+					int num3 = 3; // temp
+				}
+			}
+			break;
 		// if user clicks on clear button
 		case 20:
-			displayOne.loadTexture(emptyT);
-			displayTwo.loadTexture(emptyT);
-			displayThree.loadTexture(emptyT);
-			displayFour.loadTexture(emptyT);
-			displayFive.loadTexture(emptyT);
-			displaySix.loadTexture(emptyT);
-			displaySeven.loadTexture(emptyT);
-			currentScreen = 0;
+			clearScreen();
+			
 			break;
 
 		// if user clicks on minus button
 		case 10:
+			currentString += '-';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(minusSignT);
@@ -276,6 +318,8 @@ void changeDisplay(int id) {
 
 		// if user clicks on plus button
 		case 11:
+			currentString += '+';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(plusSignT);
@@ -324,6 +368,8 @@ void changeDisplay(int id) {
 
 		// if user clicks on multiply button
 		case 12:
+			currentString += '*';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(multiplyT);
@@ -372,6 +418,8 @@ void changeDisplay(int id) {
 
 		// if user clicks on zero button
 		case 0:
+			currentString += '0';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(zeroT);
@@ -419,6 +467,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on one button
 		case 1:
+			currentString += '1';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(oneT);
@@ -466,6 +516,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on two button
 		case 2:
+			currentString += '2';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(twoT);
@@ -513,6 +565,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on three button
 		case 3:
+			currentString += '3';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(threeT);
@@ -560,6 +614,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on four button
 		case 4:
+			currentString += '4';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(fourT);
@@ -607,6 +663,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on five button
 		case 5:
+			currentString += '5';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(fiveT);
@@ -654,6 +712,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on six button
 		case 6:
+			currentString += '6';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(sixT);
@@ -701,6 +761,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on seven button
 		case 7:
+			currentString += '7';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(sevenT);
@@ -748,6 +810,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on eight button
 		case 8:
+			currentString += '8';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(eightT);
@@ -795,6 +859,8 @@ void changeDisplay(int id) {
 			break;
 		// if user clicks on nine button
 		case 9:
+			currentString += '9';
+			cout << currentString << endl;
 			switch(currentScreen) {
 				case 0:
 					displayOne.loadTexture(nineT);
@@ -894,6 +960,8 @@ int main(int argc, char* args[]) {
 	multiplyT = SDL_CreateTextureFromSurface(renderer, tempSurface);
 	tempSurface = IMG_Load("clear.png");
 	clearT = SDL_CreateTextureFromSurface(renderer, tempSurface);
+	tempSurface = IMG_Load("equals.png");
+	equalsT = SDL_CreateTextureFromSurface(renderer, tempSurface);
 	
 	// free tempSurface
 	SDL_FreeSurface(tempSurface);
@@ -928,6 +996,7 @@ int main(int argc, char* args[]) {
 	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 19);
 	
 	clear.init(middleX - 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 20);
+	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 0x00, 150, 0x00, 21);
 
 	changeBackgroundColor(200, 200, 200);
 
@@ -986,6 +1055,7 @@ int main(int argc, char* args[]) {
 		minusSign.loadTexture(minusSignT);
 		multiply.loadTexture(multiplyT);
 		clear.loadTexture(clearT);
+		equalsSign.loadTexture(equalsT);
 		
 		// display textures
 		displayOne.displayTexture();
@@ -1010,6 +1080,7 @@ int main(int argc, char* args[]) {
 		minusSign.displayTexture();
 		multiply.displayTexture();
 		clear.displayTexture();
+		equalsSign.displayTexture();
 		
 		// update the surface
 		SDL_RenderPresent(renderer);
