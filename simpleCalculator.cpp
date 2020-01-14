@@ -226,6 +226,54 @@ void changeDisplay(int id) {
 			currentScreen = 0;
 			break;
 
+		// if user clicks on minus button
+		case 10:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(minusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(minusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(minusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(minusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(minusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(minusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(minusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+
 		// if user clicks on plus button
 		case 11:
 			switch(currentScreen) {
@@ -267,6 +315,54 @@ void changeDisplay(int id) {
 					break;
 				case 6:
 					displaySeven.loadTexture(plusSignT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+
+		// if user clicks on multiply button
+		case 12:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(multiplyT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(multiplyT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(multiplyT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(multiplyT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(multiplyT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(multiplyT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(multiplyT);
 					if (currentScreen < 6) {
 						currentScreen++;
 					}
@@ -414,6 +510,336 @@ void changeDisplay(int id) {
 					}
 					break;
 			}
+			break;
+		// if user clicks on three button
+		case 3:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(threeT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(threeT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(threeT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(threeT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(threeT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(threeT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(threeT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on four button
+		case 4:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(fourT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(fourT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(fourT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(fourT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(fourT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(fourT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(fourT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on five button
+		case 5:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(fiveT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(fiveT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(fiveT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(fiveT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(fiveT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(fiveT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(fiveT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on six button
+		case 6:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(sixT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(sixT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(sixT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(sixT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(sixT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(sixT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(sixT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on seven button
+		case 7:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(sevenT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(sevenT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(sevenT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(sevenT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(sevenT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(sevenT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(sevenT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on eight button
+		case 8:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
+		// if user clicks on nine button
+		case 9:
+			switch(currentScreen) {
+				case 0:
+					displayOne.loadTexture(nineT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 1:
+					displayTwo.loadTexture(nineT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 2:
+					displayThree.loadTexture(nineT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 3:
+					displayFour.loadTexture(nineT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 4:
+					displayFive.loadTexture(nineT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 5:
+					displaySix.loadTexture(eightT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+				case 6:
+					displaySeven.loadTexture(nineT);
+					if (currentScreen < 6) {
+						currentScreen++;
+					}
+					break;
+			}
+			break;
 	}
 }
 
