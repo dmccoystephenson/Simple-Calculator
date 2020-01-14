@@ -226,39 +226,14 @@ void clearScreen() {
 	displaySeven.loadTexture(emptyT);
 	currentScreen = 0;
 	currentScreen = 0;
+	currentString = "";
 }
 
 void changeDisplay(int id) {
 	switch(id) {
 		// if user clicks on equals button
 		case 21:
-			clearScreen();
-			if (currentString[0] == '+' || currentString[0] == '-' || currentString[0] == '*') {
-				for (size_t i = 0; i < 7; i++) {
-					changeDisplay(0);
-				}
-			}
-			else {
-				char char1 = 'z';
-				char1 = currentString[0];
-				int num1 = 0;
-				if (char1 == '0' || char1 == '1' || char1 == '2' || char1 == '3' || char1 == '4' ||
-					char1 == '5' || char1 == '6' || char1 == '7' || char1 == '8' || char1 == '9') {
-					string temp = "" + char1;
-					num1 = atoi(temp.c_str());
-				}
-				char char2 = 'z';
-				char2 = currentString[1];
-				int num2 = 0;
-				if (char2 == '0' || char2 == '1' || char2 == '2' || char2 == '3' || char2 == '4' ||
-					char2 == '5' || char2 == '6' || char2 == '7' || char2 == '8' || char2 == '9') {
-					string temp = "" + char2;
-					num2 = atoi(temp.c_str());
-				}
-				else {
-					int num3 = 3; // temp
-				}
-			}
+			changeDisplay(atoi(currentString.substr(0,1).c_str())); // problem here
 			break;
 		// if user clicks on clear button
 		case 20:
@@ -1034,6 +1009,7 @@ int main(int argc, char* args[]) {
 			minusSign.handleEvent(&e);
 			multiply.handleEvent(&e);
 			clear.handleEvent(&e);
+			equalsSign.handleEvent(&e);
 		}
 		
 		// fill the surface white
@@ -1091,7 +1067,17 @@ int main(int argc, char* args[]) {
 	SDL_DestroyTexture(twoT);
 	SDL_DestroyTexture(threeT);
 	SDL_DestroyTexture(fourT);
-	// TODO: free rest
+	SDL_DestroyTexture(fiveT);
+	SDL_DestroyTexture(sixT);
+	SDL_DestroyTexture(sevenT);
+	SDL_DestroyTexture(eightT);;
+	SDL_DestroyTexture(nineT);
+	SDL_DestroyTexture(zeroT);
+	SDL_DestroyTexture(plusSignT);
+	SDL_DestroyTexture(minusSignT);
+	SDL_DestroyTexture(multiplyT);
+	SDL_DestroyTexture(clearT);
+	SDL_DestroyTexture(equalsT);
 	
 	SDL_DestroyWindow(window);
 	SDL_DestroyRenderer(renderer);
