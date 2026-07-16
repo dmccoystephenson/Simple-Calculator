@@ -6,4 +6,5 @@ a.out
 
 # Binaries produced by the Makefile (no extension)
 /simpleCalculator
+/textCalculator
 /testingParsing

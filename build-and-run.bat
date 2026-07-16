@@ -51,7 +51,7 @@ if "!SDL_FLAGS!"=="" (
 
 REM --- build --------------------------------------------------------------
 echo Building simpleCalculator.exe ...
-g++ -std=c++17 simpleCalculator.cpp -o simpleCalculator.exe !SDL_FLAGS!
+g++ -std=c++17 simpleCalculator.cpp CalculatorEngine.cpp -o simpleCalculator.exe !SDL_FLAGS!
 if errorlevel 1 (
     echo [error] Build failed ^(see the compiler output above^).
     exit /b 1
