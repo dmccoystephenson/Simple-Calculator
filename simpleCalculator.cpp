@@ -1,16 +1,18 @@
-// using SDL and iostream
+// SDL/GUI frontend for the calculator. All calculation and display state lives
+// in the shared CalculatorEngine; this file only renders the engine's display
+// and translates SDL mouse clicks into engine input. See CalculatorEngine.h.
 #include <SDL.h>
 #include <SDL_image.h>
-#include <iostream>
-#include <string>
+#include "CalculatorEngine.h"
 
 // using namespace std
 using namespace std;
 
 // functions
-void changeBackgroundColor(int r, int g, int b); // changes background color
-void changeDisplay(int id); // changes currently selected display to the button id textur
-void clearScreen();
+void changeBackgroundColor(int r, int g, int b); // changes the background color
+void changeDisplay(int id); // routes a button id to the calculator engine
+SDL_Texture* textureForChar(char value); // maps a display character to its texture
+void syncDisplay(); // pushes the engine's display state into the slot buttons
 void init();
 void loadMedia();
 void close();
@@ -32,9 +34,8 @@ SDL_Window* window = NULL;
 // the renderer
 SDL_Renderer* renderer = NULL;
 
-// screen variables
-int currentScreen;
-string currentString;
+// the shared, UI-agnostic calculator core
+CalculatorEngine engine;
 
 // button class
 class Button {
@@ -43,9 +44,6 @@ class Button {
 	int ypos;
 	int width;
 	int height;
-	int red;
-	int green;
-	int blue;
 	SDL_Texture* currentTexture;
 	int id;
 
@@ -54,123 +52,52 @@ class Button {
 		ypos = 0;
 		width = 0;
 		height = 0;
-		red = 0;
-		green = 0;
-		blue = 0;
 		currentTexture = NULL;
 		id = 0;
 	}
-	
-	void init(int x, int y, int w, int h, int r, int g, int b, int num) {
+
+	void init(int x, int y, int w, int h, int num) {
 		xpos = x;
 		ypos = y;
 		width = w;
 		height = h;
-		red = r;
-		green = g;
-		blue = b;
 		id = num;
 	}
-	
+
 	void loadTexture(SDL_Texture* textureToLoad) {
 		currentTexture = textureToLoad;
 	}
-	
-	void render() {
-		SDL_Rect fillRect = {xpos, ypos, width, height};
-		SDL_SetRenderDrawColor(renderer, red, green, blue, 0xFF);
-		SDL_RenderFillRect(renderer, &fillRect);
-	}
-	
+
 	void displayTexture() {
 		SDL_Rect renderQuad = {xpos, ypos, width, height};
 		SDL_RenderCopy(renderer, currentTexture, NULL, &renderQuad);
 	}
-	
+
 	void handleEvent(SDL_Event* e) {
-		// if mouse event happened
-		if (e->type == SDL_MOUSEMOTION || e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP) {
+		// only a mouse-button press does anything
+		if (e->type == SDL_MOUSEBUTTONDOWN) {
 			// get mouse position
 			int x, y;
 			SDL_GetMouseState(&x, &y);
-			
-			// check if mouse is in button
+
+			// check if the click landed inside the button
 			bool inside = true;
-			
-			// if mouse is left of the button
 			if (x < xpos) {
 				inside = false;
 			}
-			
-			// if mouse is right of the button
 			else if (x > xpos + width) {
 				inside = false;
 			}
-			
-			// if mouse is above the button
 			else if (y < ypos) {
 				inside = false;
 			}
-			
-			// if mouse is below the button
 			else if (y > ypos + height) {
 				inside = false;
 			}
-			
-			// mouse is outside button
-			if (!inside) {
-				if (red > 0) {
-					red = 250;
-				}
-				if (green > 0) {
-					green = 250;
-				}
-				if (blue > 0) {
-					blue = 250;
-				}
-			}
-			
-			// mouse is inside button
-			else {
-				// set mouse over sprite
-				switch (e->type) {
-					case SDL_MOUSEMOTION:
-						if (red > 0) {
-							red = 200;
-						}
-						if (green > 0) {
-							green = 200;
-						}
-						if (blue > 0) {
-							blue = 200;
-						}
-						break;
-						
-					case SDL_MOUSEBUTTONDOWN:
-						if (red > 0) {
-							red = 255;
-						}
-						if (green > 0) {
-							green = 255;
-						}
-						if (blue > 0) {
-							blue = 255;
-						}
-						changeDisplay(id);
-						break;
-					
-					case SDL_MOUSEBUTTONUP:
-						if (red > 0) {
-							red = 200;
-						}
-						if (green > 0) {
-							green = 200;
-						}
-						if (blue > 0) {
-							blue = 200;
-						}
-						break;
-				}
+
+			// dispatch the click
+			if (inside) {
+				changeDisplay(id);
 			}
 		}
 	}
@@ -194,7 +121,7 @@ SDL_Texture* multiplyT = NULL;
 SDL_Texture* clearT = NULL;
 SDL_Texture* equalsT = NULL;
 
-// button declarations
+// display slot buttons (top row, ids 13-19)
 Button displayOne;
 Button displayTwo;
 Button displayThree;
@@ -203,6 +130,7 @@ Button displayFive;
 Button displaySix;
 Button displaySeven;
 
+// digit buttons (ids 0-9)
 Button one;
 Button two;
 Button three;
@@ -213,10 +141,13 @@ Button seven;
 Button eight;
 Button nine;
 Button zero;
+
+// operator buttons
 Button plusSign;
 Button minusSign;
 Button multiply;
 
+// command buttons
 Button clear;
 Button equalsSign;
 
@@ -226,728 +157,114 @@ void changeBackgroundColor(int r, int g, int b) {
 	backgroundB = b;
 }
 
-void clearScreen() {
-	displayOne.loadTexture(emptyT);
-	displayTwo.loadTexture(emptyT);
-	displayThree.loadTexture(emptyT);
-	displayFour.loadTexture(emptyT);
-	displayFive.loadTexture(emptyT);
-	displaySix.loadTexture(emptyT);
-	displaySeven.loadTexture(emptyT);
-	currentScreen = 0;
-	currentString = "";
+// Routes a clicked button id to the engine. Digit ids (0-9) and operator/command
+// ids drive the calculation; display-slot ids (13-19) are inert.
+void changeDisplay(int id) {
+	if (id >= 0 && id <= 9) {
+		engine.inputDigit(id);
+	}
+	else if (id == 10) {
+		engine.inputOperator('-');
+	}
+	else if (id == 11) {
+		engine.inputOperator('+');
+	}
+	else if (id == 12) {
+		engine.inputOperator('*');
+	}
+	else if (id == 20) {
+		engine.clear();
+	}
+	else if (id == 21) {
+		int result = 0;
+		engine.evaluate(result); // the engine updates its display to show the result
+	}
 }
 
-void changeDisplay(int id) {
-	switch(id) {
-		// if user clicks on equals button
-		case 21:
-			changeDisplay(atoi(currentString.substr(0,1).c_str())); // problem here
-			break;
-		// if user clicks on clear button
-		case 20:
-			clearScreen();
-			
-			break;
+// Maps a display character produced by the engine to the texture that draws it.
+SDL_Texture* textureForChar(char value) {
+	switch (value) {
+		case '0': return zeroT;
+		case '1': return oneT;
+		case '2': return twoT;
+		case '3': return threeT;
+		case '4': return fourT;
+		case '5': return fiveT;
+		case '6': return sixT;
+		case '7': return sevenT;
+		case '8': return eightT;
+		case '9': return nineT;
+		case '+': return plusSignT;
+		case '-': return minusSignT;
+		case '*': return multiplyT;
+		default:  return emptyT; // '\0' (empty slot) or anything unrenderable
+	}
+}
 
-		// if user clicks on minus button
-		case 10:
-			currentString += '-';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(minusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(minusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(minusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(minusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(minusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(minusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(minusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-
-		// if user clicks on plus button
-		case 11:
-			currentString += '+';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(plusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(plusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(plusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(plusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(plusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(plusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(plusSignT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-
-		// if user clicks on multiply button
-		case 12:
-			currentString += '*';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(multiplyT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(multiplyT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(multiplyT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(multiplyT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(multiplyT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(multiplyT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(multiplyT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-
-		// if user clicks on zero button
-		case 0:
-			currentString += '0';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(zeroT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(zeroT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(zeroT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(zeroT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(zeroT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(zeroT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(zeroT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on one button
-		case 1:
-			currentString += '1';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(oneT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(oneT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(oneT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(oneT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(oneT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(oneT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(oneT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on two button
-		case 2:
-			currentString += '2';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(twoT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(twoT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(twoT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(twoT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(twoT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(twoT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(twoT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on three button
-		case 3:
-			currentString += '3';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(threeT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(threeT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(threeT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(threeT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(threeT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(threeT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(threeT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on four button
-		case 4:
-			currentString += '4';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(fourT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(fourT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(fourT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(fourT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(fourT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(fourT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(fourT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on five button
-		case 5:
-			currentString += '5';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(fiveT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(fiveT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(fiveT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(fiveT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(fiveT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(fiveT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(fiveT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on six button
-		case 6:
-			currentString += '6';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(sixT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(sixT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(sixT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(sixT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(sixT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(sixT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(sixT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on seven button
-		case 7:
-			currentString += '7';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(sevenT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(sevenT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(sevenT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(sevenT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(sevenT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(sevenT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(sevenT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on eight button
-		case 8:
-			currentString += '8';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
-		// if user clicks on nine button
-		case 9:
-			currentString += '9';
-			cout << currentString << endl;
-			switch(currentScreen) {
-				case 0:
-					displayOne.loadTexture(nineT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 1:
-					displayTwo.loadTexture(nineT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 2:
-					displayThree.loadTexture(nineT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 3:
-					displayFour.loadTexture(nineT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 4:
-					displayFive.loadTexture(nineT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 5:
-					displaySix.loadTexture(eightT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-				case 6:
-					displaySeven.loadTexture(nineT);
-					if (currentScreen < 6) {
-						currentScreen++;
-					}
-					break;
-			}
-			break;
+// Refreshes the seven display-slot buttons from the engine's current display.
+void syncDisplay() {
+	Button* displaySlots[CalculatorEngine::SLOT_COUNT] = {
+		&displayOne, &displayTwo, &displayThree, &displayFour,
+		&displayFive, &displaySix, &displaySeven
+	};
+	for (int i = 0; i < engine.slotCount(); i++) {
+		displaySlots[i]->loadTexture(textureForChar(engine.slotChar(i)));
 	}
 }
 
 void init() {
 	// initialize SDL
 	SDL_Init(SDL_INIT_VIDEO);
-	
+
 	// create window
 	window = SDL_CreateWindow("Simple Calculator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-	
+
 	// get window surface
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-	
+
 	// initialize renderer color
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-	
-    currentScreen = 0;
-    
+
 	// initialize PNG loading
 	int imgFlags = IMG_INIT_PNG;
 	IMG_Init(imgFlags);
-    
-    // set middle button x and y
+
+	// set middle button x and y
 	int middleX = SCREEN_WIDTH/2 - 50;
 	int middleY = SCREEN_HEIGHT/2 - 50;
-	
-    // initialize buttons
-	zero.init(middleX, middleY + 250, 100, 100, 150, 0, 0x00, 0);
-	one.init(middleX - 125, middleY + 125, 100, 100, 0x00, 150, 150, 1);
-	two.init(middleX, middleY + 125, 100, 100, 0x00, 150, 0x00, 2);
-	three.init(middleX + 125, middleY + 125, 100, 100, 0x00, 150, 0x00, 3);
-	four.init(middleX - 125, middleY, 100, 100, 0x00, 150, 0x00, 4);
-	five.init(middleX, middleY, 100, 100, 0x00, 0, 150, 5);
-	six.init(middleX + 125, middleY, 100, 100, 0x00, 150, 0x00, 6);
-	seven.init(middleX - 125, middleY - 125, 100, 100, 0x00, 150, 0x00, 7);
-	eight.init(middleX, middleY - 125, 100, 100, 0x00, 150, 0x00, 8);
-	nine.init(middleX + 125, middleY - 125, 100, 100, 0x00, 150, 0x00, 9);
 
-	minusSign.init(middleX + 250, middleY, 100, 100, 0x00, 150, 0x00, 10);
-	plusSign.init(middleX + 250, middleY + 125, 100, 100, 0x00, 150, 0x00, 11);
-	multiply.init(middleX + 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 12);
+	// initialize buttons
+	zero.init(middleX, middleY + 250, 100, 100, 0);
+	one.init(middleX - 125, middleY + 125, 100, 100, 1);
+	two.init(middleX, middleY + 125, 100, 100, 2);
+	three.init(middleX + 125, middleY + 125, 100, 100, 3);
+	four.init(middleX - 125, middleY, 100, 100, 4);
+	five.init(middleX, middleY, 100, 100, 5);
+	six.init(middleX + 125, middleY, 100, 100, 6);
+	seven.init(middleX - 125, middleY - 125, 100, 100, 7);
+	eight.init(middleX, middleY - 125, 100, 100, 8);
+	nine.init(middleX + 125, middleY - 125, 100, 100, 9);
 
-	displayOne.init(middleX - 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 13);
-	displayTwo.init(middleX - 200, middleY - 250, 100, 100, 0x00, 150, 0x00, 14);
-	displayThree.init(middleX - 100, middleY - 250, 100, 100, 0x00, 150, 0x00, 15);
-	displayFour.init(middleX, middleY - 250, 100, 100, 0x00, 150, 0x00, 16);
-	displayFive.init(middleX + 100, middleY - 250, 100, 100, 0x00, 150, 0x00, 17);
-	displaySix.init(middleX + 200, middleY - 250, 100, 100, 0x00, 150, 0x00, 18);
-	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 0x00, 150, 0x00, 19);
-	
-	clear.init(middleX - 250, middleY - 125, 100, 100, 0x00, 150, 0x00, 20);
-	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 0x00, 150, 0x00, 21);
+	minusSign.init(middleX + 250, middleY, 100, 100, 10);
+	plusSign.init(middleX + 250, middleY + 125, 100, 100, 11);
+	multiply.init(middleX + 250, middleY - 125, 100, 100, 12);
+
+	displayOne.init(middleX - 300, middleY - 250, 100, 100, 13);
+	displayTwo.init(middleX - 200, middleY - 250, 100, 100, 14);
+	displayThree.init(middleX - 100, middleY - 250, 100, 100, 15);
+	displayFour.init(middleX, middleY - 250, 100, 100, 16);
+	displayFive.init(middleX + 100, middleY - 250, 100, 100, 17);
+	displaySix.init(middleX + 200, middleY - 250, 100, 100, 18);
+	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 19);
+
+	clear.init(middleX - 250, middleY - 125, 100, 100, 20);
+	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 21);
 }
 
 void loadMedia() {
-    // create tempSurface
+	// create tempSurface
 	SDL_Surface* tempSurface;
-	
+
 	// initialize textures
 	tempSurface = IMG_Load("empty.png");
 	emptyT = SDL_CreateTextureFromSurface(renderer, tempSurface);
@@ -981,40 +298,31 @@ void loadMedia() {
 	clearT = SDL_CreateTextureFromSurface(renderer, tempSurface);
 	tempSurface = IMG_Load("equals.png");
 	equalsT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	
+
 	// free tempSurface
 	SDL_FreeSurface(tempSurface);
-    
-	// load initial display textures
-	displayOne.loadTexture(emptyT);
-	displayTwo.loadTexture(emptyT);
-	displayThree.loadTexture(emptyT);
-	displayFour.loadTexture(emptyT);
-	displayFive.loadTexture(emptyT);
-	displaySix.loadTexture(emptyT);
-	displaySeven.loadTexture(emptyT);
-    
-    // load button textures
-    one.loadTexture(oneT);
-    two.loadTexture(twoT);
-    three.loadTexture(threeT);
-    four.loadTexture(fourT);
-    five.loadTexture(fiveT);
-    six.loadTexture(sixT);
-    seven.loadTexture(sevenT);
-    eight.loadTexture(eightT);
-    nine.loadTexture(nineT);
-    zero.loadTexture(zeroT);
-    plusSign.loadTexture(plusSignT);
-    minusSign.loadTexture(minusSignT);
-    multiply.loadTexture(multiplyT);
-    clear.loadTexture(clearT);
-    equalsSign.loadTexture(equalsT);
+
+	// load button textures (display slots are filled each frame by syncDisplay)
+	one.loadTexture(oneT);
+	two.loadTexture(twoT);
+	three.loadTexture(threeT);
+	four.loadTexture(fourT);
+	five.loadTexture(fiveT);
+	six.loadTexture(sixT);
+	seven.loadTexture(sevenT);
+	eight.loadTexture(eightT);
+	nine.loadTexture(nineT);
+	zero.loadTexture(zeroT);
+	plusSign.loadTexture(plusSignT);
+	minusSign.loadTexture(minusSignT);
+	multiply.loadTexture(multiplyT);
+	clear.loadTexture(clearT);
+	equalsSign.loadTexture(equalsT);
 }
 
 void close() {
-    // free resources
-    SDL_DestroyTexture(emptyT);
+	// free resources
+	SDL_DestroyTexture(emptyT);
 	SDL_DestroyTexture(oneT);
 	SDL_DestroyTexture(twoT);
 	SDL_DestroyTexture(threeT);
@@ -1030,73 +338,75 @@ void close() {
 	SDL_DestroyTexture(multiplyT);
 	SDL_DestroyTexture(clearT);
 	SDL_DestroyTexture(equalsT);
-	
-    // destroy renderer and window (renderer first, per SDL convention)
+
+	// destroy renderer and window (renderer first, per SDL convention)
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
-    
-    // exit SDL subystems
-    IMG_Quit();
+
+	// exit SDL subystems
+	IMG_Quit();
 }
 
 void handleButtonEvents(SDL_Event e) {
-    one.handleEvent(&e);
-    two.handleEvent(&e);
-    three.handleEvent(&e);
-    four.handleEvent(&e);
-    five.handleEvent(&e);
-    six.handleEvent(&e);
-    seven.handleEvent(&e);
-    eight.handleEvent(&e);
-    nine.handleEvent(&e);
-    zero.handleEvent(&e);
-    plusSign.handleEvent(&e);
-    minusSign.handleEvent(&e);
-    multiply.handleEvent(&e);
-    clear.handleEvent(&e);
-    equalsSign.handleEvent(&e);
+	one.handleEvent(&e);
+	two.handleEvent(&e);
+	three.handleEvent(&e);
+	four.handleEvent(&e);
+	five.handleEvent(&e);
+	six.handleEvent(&e);
+	seven.handleEvent(&e);
+	eight.handleEvent(&e);
+	nine.handleEvent(&e);
+	zero.handleEvent(&e);
+	plusSign.handleEvent(&e);
+	minusSign.handleEvent(&e);
+	multiply.handleEvent(&e);
+	clear.handleEvent(&e);
+	equalsSign.handleEvent(&e);
 }
 
 void displayButtonTextures() {
-    // display textures
-    displayOne.displayTexture();
-    displayTwo.displayTexture();
-    displayThree.displayTexture();
-    displayFour.displayTexture();
-    displayFive.displayTexture();
-    displaySix.displayTexture();
-    displaySeven.displayTexture();
-    
-    one.displayTexture();
-    two.displayTexture();
-    three.displayTexture();
-    four.displayTexture();
-    five.displayTexture();
-    six.displayTexture();
-    seven.displayTexture();
-    eight.displayTexture();
-    nine.displayTexture();
-    zero.displayTexture();
-    plusSign.displayTexture();
-    minusSign.displayTexture();
-    multiply.displayTexture();
-    clear.displayTexture();
-    equalsSign.displayTexture();
+	// refresh the display slots from the engine, then draw every button
+	syncDisplay();
+
+	displayOne.displayTexture();
+	displayTwo.displayTexture();
+	displayThree.displayTexture();
+	displayFour.displayTexture();
+	displayFive.displayTexture();
+	displaySix.displayTexture();
+	displaySeven.displayTexture();
+
+	one.displayTexture();
+	two.displayTexture();
+	three.displayTexture();
+	four.displayTexture();
+	five.displayTexture();
+	six.displayTexture();
+	seven.displayTexture();
+	eight.displayTexture();
+	nine.displayTexture();
+	zero.displayTexture();
+	plusSign.displayTexture();
+	minusSign.displayTexture();
+	multiply.displayTexture();
+	clear.displayTexture();
+	equalsSign.displayTexture();
 }
 
 // argc/argv are unnamed: SDL requires this signature, but the app uses neither
 int main(int, char*[]) {
-    init();
-    
-    loadMedia();
-	
+	init();
+
+	loadMedia();
+
 	// event handler
 	SDL_Event e;
 
 	changeBackgroundColor(200, 200, 200);
 
 	bool running = true;
-	
+
 	// while app is running
 	while (running) {
 		// handle events on queue
@@ -1105,22 +415,22 @@ int main(int, char*[]) {
 			if (e.type == SDL_QUIT) {
 				running = false;
 			}
-			
-            handleButtonEvents(e);
+
+			handleButtonEvents(e);
 		}
-		
-		// fill the surface white
+
+		// fill the surface with the background color
 		SDL_SetRenderDrawColor(renderer, backgroundR, backgroundG, backgroundB, 0xFF);
 		SDL_RenderClear(renderer);
-		
-        // display textures
-        displayButtonTextures();
-		
+
+		// display textures
+		displayButtonTextures();
+
 		// update the surface
 		SDL_RenderPresent(renderer);
 	}
-	
-    close();
-	
+
+	close();
+
 	return 0;
 }

@@ -2,9 +2,25 @@
 
 [![CI](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/actions/workflows/ci.yml/badge.svg)](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/actions/workflows/ci.yml)
 
-A small graphical calculator built with C++ and [SDL2](https://www.libsdl.org/),
-using SDL2_image to render PNG button textures. The interface presents digit and
-operator buttons that build up an equation string on screen.
+A small calculator in C++. The calculation logic lives in a UI-agnostic core
+(`CalculatorEngine`) that every frontend shares, so the same engine drives both
+a graphical [SDL2](https://www.libsdl.org/) interface and a text/CLI interface.
+
+## Architecture
+
+The code is split into a shared engine and thin frontends:
+
+| File | Role |
+| --- | --- |
+| `CalculatorEngine.h` / `.cpp` | UI-agnostic core — input state, the 7-slot display model, and evaluation via the shunting-yard parser. Knows nothing about SDL or a terminal. |
+| `simpleCalculator.cpp` | SDL/GUI frontend — renders the engine's display as textures and turns mouse clicks into engine input. |
+| `textCalculator.cpp` | Text/CLI frontend — renders the display as text and turns typed characters into engine input. |
+| `testingParsing.cpp` | Assert-based test suite for the engine + parser (no SDL). |
+
+A frontend contains no calculation logic of its own; it only translates its
+input events into `CalculatorEngine` calls and renders the display the engine
+exposes. New frontends (e.g. a pygame binding or a WebAssembly build) can be
+added by reusing the same core.
 
 ## Dependencies
 
@@ -23,18 +39,21 @@ sudo apt install g++ libsdl2-dev libsdl2-image-dev
 With the provided `Makefile`:
 
 ```sh
-make            # builds both simpleCalculator and testingParsing
+make            # builds simpleCalculator, textCalculator, and testingParsing
 make clean      # removes built binaries
 ```
 
-Or compile directly with `g++`:
+Or compile directly with `g++` (each frontend links the shared engine):
 
 ```sh
 # GUI calculator (needs SDL2 + SDL2_image)
-g++ -std=c++17 simpleCalculator.cpp -o simpleCalculator $(pkg-config --cflags --libs sdl2 SDL2_image)
+g++ -std=c++17 simpleCalculator.cpp CalculatorEngine.cpp -o simpleCalculator $(pkg-config --cflags --libs sdl2 SDL2_image)
 
-# Standalone parser test harness (no SDL dependency)
-g++ -std=c++17 testingParsing.cpp -o testingParsing
+# Text/CLI calculator (no SDL dependency)
+g++ -std=c++17 textCalculator.cpp CalculatorEngine.cpp -o textCalculator
+
+# Engine + parser test suite (no SDL dependency)
+g++ -std=c++17 testingParsing.cpp CalculatorEngine.cpp -o testingParsing
 ```
 
 ### Windows (one-shot)
@@ -73,20 +92,23 @@ with relative paths via `IMG_Load`, so **run the program from the repository
 directory** where those assets live. Running it from elsewhere will fail to load
 the textures.
 
-The parser test harness is interactive — it reads an equation from standard input
-and prints the parsed result:
+The text/CLI frontend runs in a terminal — type digits and `+ - *`, then `=` to
+evaluate, `c` to clear, `q` to quit:
+
+```sh
+./textCalculator
+```
+
+The test suite runs the engine + parser assertions and prints a summary:
 
 ```sh
 ./testingParsing
 ```
 
-## Known limitations
+## Supported operations
 
-These are tracked as open issues:
-
-- The equals button does not yet evaluate the equation (issue #1). Note the
-  standalone equation parser in `testingParsing.cpp` is implemented and
-  working; it is just not yet wired into the GUI's equals button.
+Integer `+`, `-`, and `*` with standard precedence and left-associativity.
+Division and decimals are not yet supported (tracked in the issue tracker).
 
 See the [issue tracker](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/issues)
-for the full list.
+for known limitations and planned work.

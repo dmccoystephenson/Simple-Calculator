@@ -17,15 +17,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsdl2-dev libsdl2-image-dev
 
-      # Builds both binaries via the project's Makefile — this is the first
-      # place simpleCalculator.cpp gets compiled and linked against SDL2.
-      # CI overrides CXXFLAGS to add -Werror so new warnings fail the build,
-      # while a local `make` stays non-fatal (Makefile keeps -Wall -Wextra).
+      # Builds all three frontends/targets via the Makefile (SDL GUI, text CLI,
+      # and the test runner), each linking the shared CalculatorEngine — this
+      # is the first place simpleCalculator.cpp is compiled and linked against
+      # SDL2. CI overrides CXXFLAGS to add -Werror so new warnings fail the
+      # build, while a local `make` stays non-fatal (Makefile keeps -Wall -Wextra).
       - name: Build (Makefile)
         run: make CXXFLAGS="-std=c++17 -Wall -Wextra -Werror"
 
-      # Runs the shunting-yard parser's assert-based self-tests. < /dev/null
-      # feeds EOF to the interactive prompt so the program exits cleanly; a
-      # failing assertion aborts with a non-zero status and fails the job.
-      - name: Run parser self-tests
-        run: ./testingParsing < /dev/null
+      # Runs the engine + parser assert-based test suite; a failing assertion
+      # aborts with a non-zero status and fails the job.
+      - name: Run engine tests
+        run: ./testingParsing
+
+      # End-to-end check of the text frontend driving the shared engine.
+      - name: Smoke-test the text frontend
+        run: |
+          printf '12+3=\n2*3+4=\nq\n' | ./textCalculator | tee /tmp/out
+          grep -q '= 15' /tmp/out
+          grep -q '= 10' /tmp/out
