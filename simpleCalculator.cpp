@@ -9,7 +9,6 @@
 using namespace std;
 
 // functions
-void changeBackgroundColor(int r, int g, int b); // changes the background color
 void changeDisplay(int id); // routes a button id to the calculator engine
 SDL_Texture* textureForChar(char value); // maps a display character to its texture
 void syncDisplay(); // pushes the engine's display state into the slot buttons
@@ -22,11 +21,6 @@ void displayButtonTextures();
 // screen dimensions
 const int SCREEN_WIDTH = 750;
 const int SCREEN_HEIGHT = 650;
-
-// screen color
-int backgroundR = 255;
-int backgroundG = 255;
-int backgroundB = 255;
 
 // the window we'll be rendering to
 SDL_Window* window = NULL;
@@ -76,9 +70,9 @@ class Button {
 	void handleEvent(SDL_Event* e) {
 		// only a mouse-button press does anything
 		if (e->type == SDL_MOUSEBUTTONDOWN) {
-			// get mouse position
-			int x, y;
-			SDL_GetMouseState(&x, &y);
+			// the click event already carries the mouse position
+			int x = e->button.x;
+			int y = e->button.y;
 
 			// check if the click landed inside the button
 			bool inside = true;
@@ -150,12 +144,6 @@ Button multiply;
 // command buttons
 Button clear;
 Button equalsSign;
-
-void changeBackgroundColor(int r, int g, int b) {
-	backgroundR = r;
-	backgroundG = g;
-	backgroundB = b;
-}
 
 // Routes a clicked button id to the engine. Digit ids (0-9) and operator/command
 // ids drive the calculation; display-slot ids (13-19) are inert.
@@ -403,8 +391,6 @@ int main(int, char*[]) {
 	// event handler
 	SDL_Event e;
 
-	changeBackgroundColor(200, 200, 200);
-
 	bool running = true;
 
 	// while app is running
@@ -420,7 +406,7 @@ int main(int, char*[]) {
 		}
 
 		// fill the surface with the background color
-		SDL_SetRenderDrawColor(renderer, backgroundR, backgroundG, backgroundB, 0xFF);
+		SDL_SetRenderDrawColor(renderer, 200, 200, 200, 0xFF);
 		SDL_RenderClear(renderer);
 
 		// display textures
