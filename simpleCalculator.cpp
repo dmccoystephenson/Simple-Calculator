@@ -76,9 +76,9 @@ class Button {
 	void handleEvent(SDL_Event* e) {
 		// only a mouse-button press does anything
 		if (e->type == SDL_MOUSEBUTTONDOWN) {
-			// get mouse position
-			int x, y;
-			SDL_GetMouseState(&x, &y);
+			// the click event already carries the mouse position
+			int x = e->button.x;
+			int y = e->button.y;
 
 			// check if the click landed inside the button
 			bool inside = true;
