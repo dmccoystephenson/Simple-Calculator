@@ -3,6 +3,7 @@
 // and translates SDL mouse clicks into engine input. See CalculatorEngine.h.
 #include <SDL.h>
 #include <SDL_image.h>
+#include <iostream>
 #include "CalculatorEngine.h"
 
 // using namespace std
@@ -12,8 +13,9 @@ using namespace std;
 void changeDisplay(int id); // routes a button id to the calculator engine
 SDL_Texture* textureForChar(char value); // maps a display character to its texture
 void syncDisplay(); // pushes the engine's display state into the slot buttons
-void init();
-void loadMedia();
+SDL_Texture* loadTexture(const char* path); // loads a PNG into a texture, freeing the intermediate surface
+bool init(); // returns false if SDL/window/renderer setup fails
+bool loadMedia(); // returns false if any texture fails to load
 void close();
 void handleButtonEvents(SDL_Event e);
 void displayButtonTextures();
@@ -200,22 +202,36 @@ void syncDisplay() {
 	}
 }
 
-void init() {
+bool init() {
 	// initialize SDL
-	SDL_Init(SDL_INIT_VIDEO);
+	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+		cerr << "SDL_Init failed: " << SDL_GetError() << endl;
+		return false;
+	}
 
 	// create window
 	window = SDL_CreateWindow("Simple Calculator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+	if (window == NULL) {
+		cerr << "SDL_CreateWindow failed: " << SDL_GetError() << endl;
+		return false;
+	}
 
 	// get window surface
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	if (renderer == NULL) {
+		cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << endl;
+		return false;
+	}
 
 	// initialize renderer color
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 
 	// initialize PNG loading
 	int imgFlags = IMG_INIT_PNG;
-	IMG_Init(imgFlags);
+	if ((IMG_Init(imgFlags) & imgFlags) != imgFlags) {
+		cerr << "IMG_Init failed: " << IMG_GetError() << endl;
+		return false;
+	}
 
 	// set middle button x and y
 	int middleX = SCREEN_WIDTH/2 - 50;
@@ -247,48 +263,55 @@ void init() {
 
 	clear.init(middleX - 250, middleY - 125, 100, 100, 20);
 	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 21);
+
+	return true;
 }
 
-void loadMedia() {
-	// create tempSurface
-	SDL_Surface* tempSurface;
+// Loads a PNG at path into a texture. The intermediate surface is always
+// freed here so callers never have to manage it (fixes the leak where a
+// single reused tempSurface was only freed once, after the last of 16 loads).
+// Returns NULL and logs to cerr if the load or texture creation fails.
+SDL_Texture* loadTexture(const char* path) {
+	SDL_Surface* surface = IMG_Load(path);
+	if (surface == NULL) {
+		cerr << "IMG_Load failed for " << path << ": " << IMG_GetError() << endl;
+		return NULL;
+	}
 
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+	if (texture == NULL) {
+		cerr << "SDL_CreateTextureFromSurface failed for " << path << ": " << SDL_GetError() << endl;
+	}
+
+	SDL_FreeSurface(surface);
+	return texture;
+}
+
+bool loadMedia() {
 	// initialize textures
-	tempSurface = IMG_Load("empty.png");
-	emptyT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("one.png");
-	oneT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("two.png");
-	twoT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("three.png");
-	threeT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("four.png");
-	fourT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("five.png");
-	fiveT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("six.png");
-	sixT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("seven.png");
-	sevenT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("eight.png");
-	eightT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("nine.png");
-	nineT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("zero.png");
-	zeroT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("minus.png");
-	minusSignT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("plus.png");
-	plusSignT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("multiply.png");
-	multiplyT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("clear.png");
-	clearT = SDL_CreateTextureFromSurface(renderer, tempSurface);
-	tempSurface = IMG_Load("equals.png");
-	equalsT = SDL_CreateTextureFromSurface(renderer, tempSurface);
+	emptyT = loadTexture("empty.png");
+	oneT = loadTexture("one.png");
+	twoT = loadTexture("two.png");
+	threeT = loadTexture("three.png");
+	fourT = loadTexture("four.png");
+	fiveT = loadTexture("five.png");
+	sixT = loadTexture("six.png");
+	sevenT = loadTexture("seven.png");
+	eightT = loadTexture("eight.png");
+	nineT = loadTexture("nine.png");
+	zeroT = loadTexture("zero.png");
+	minusSignT = loadTexture("minus.png");
+	plusSignT = loadTexture("plus.png");
+	multiplyT = loadTexture("multiply.png");
+	clearT = loadTexture("clear.png");
+	equalsT = loadTexture("equals.png");
 
-	// free tempSurface
-	SDL_FreeSurface(tempSurface);
+	if (emptyT == NULL || oneT == NULL || twoT == NULL || threeT == NULL ||
+		fourT == NULL || fiveT == NULL || sixT == NULL || sevenT == NULL ||
+		eightT == NULL || nineT == NULL || zeroT == NULL || minusSignT == NULL ||
+		plusSignT == NULL || multiplyT == NULL || clearT == NULL || equalsT == NULL) {
+		return false;
+	}
 
 	// load button textures (display slots are filled each frame by syncDisplay)
 	one.loadTexture(oneT);
@@ -306,6 +329,8 @@ void loadMedia() {
 	multiply.loadTexture(multiplyT);
 	clear.loadTexture(clearT);
 	equalsSign.loadTexture(equalsT);
+
+	return true;
 }
 
 void close() {
@@ -384,9 +409,16 @@ void displayButtonTextures() {
 
 // argc/argv are unnamed: SDL requires this signature, but the app uses neither
 int main(int, char*[]) {
-	init();
+	if (!init()) {
+		cerr << "Initialization failed, exiting." << endl;
+		return 1;
+	}
 
-	loadMedia();
+	if (!loadMedia()) {
+		cerr << "Failed to load media, exiting." << endl;
+		close();
+		return 1;
+	}
 
 	// event handler
 	SDL_Event e;
