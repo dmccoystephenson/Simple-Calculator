@@ -35,8 +35,8 @@ static void testParser() {
 
 	// division: integer, truncated toward zero, same precedence as '*'
 	assert(parseEquation("8/2", result) && result == 4);
-	assert(parseEquation("7/2", result) && result == 3);          // truncates toward zero
-	assert(parseEquation("0-7/2", result) && result == -3);       // truncates toward zero, not down
+	assert(parseEquation("7/2", result) && result == 3);          // truncates, does not round
+	assert(parseEquation("0-7/2", result) && result == -3);       // '/' binds tighter than '-'
 	assert(parseEquation("100/5/2", result) && result == 10);     // left-associative
 	assert(parseEquation("2+8/4", result) && result == 4);        // '/' binds tighter than '+'
 	assert(parseEquation("8/4+2", result) && result == 4);        // precedence, other order

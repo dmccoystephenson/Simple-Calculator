@@ -258,6 +258,7 @@ bool init() {
 	minusSign.init(middleX + 250, middleY, 100, 100, 10);
 	plusSign.init(middleX + 250, middleY + 125, 100, 100, 11);
 	multiply.init(middleX + 250, middleY - 125, 100, 100, 12);
+	divide.init(middleX - 250, middleY, 100, 100, 22); // left column, below clear
 
 	displayOne.init(middleX - 300, middleY - 250, 100, 100, 13);
 	displayTwo.init(middleX - 200, middleY - 250, 100, 100, 14);
@@ -268,7 +269,6 @@ bool init() {
 	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 19);
 
 	clear.init(middleX - 250, middleY - 125, 100, 100, 20);
-	divide.init(middleX - 250, middleY, 100, 100, 22);
 	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 21);
 
 	return true;

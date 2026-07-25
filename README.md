@@ -109,9 +109,9 @@ The test suite runs the engine + parser assertions and prints a summary:
 
 Integer `+`, `-`, `*`, and `/` with standard precedence and left-associativity.
 
-Division is **integer** division, truncated toward zero — `7/2` is `3` and
-`0-7/2` is `-3`. Dividing by zero is rejected the same way any other malformed
-equation is: the GUI leaves the display unchanged, and the text frontend prints
+Division is **integer** division, truncated toward zero — `7/2` is `3`, not `4`
+or `3.5`. Dividing by zero is rejected the same way any other malformed equation
+is: the GUI leaves the display unchanged, and the text frontend prints
 `(invalid equation)`.
 
 Decimal/floating-point values are not yet supported (tracked in the issue
