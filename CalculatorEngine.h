@@ -13,9 +13,10 @@
 #include <string>
 
 // Evaluates an integer arithmetic expression using the shunting-yard
-// algorithm (supports +, -, * with standard precedence and left-associativity).
+// algorithm (supports +, -, *, / with standard precedence and
+// left-associativity). Division is integer division, truncated toward zero.
 // Returns true and writes the value to result on success; returns false on
-// malformed/empty input or an unsupported character.
+// malformed/empty input, an unsupported character, or division by zero.
 bool parseEquation(const std::string& equation, int& result);
 
 class CalculatorEngine {
@@ -27,7 +28,7 @@ class CalculatorEngine {
 
 	// Input — a frontend maps its own buttons/keys onto these.
 	void inputDigit(int digit);   // digit in [0, 9]; out-of-range is ignored
-	void inputOperator(char op);  // op in {'+', '-', '*'}; others are ignored
+	void inputOperator(char op);  // op in {'+', '-', '*', '/'}; others are ignored
 	void clear();                 // reset to the empty state
 	bool evaluate(int& result);   // evaluate; on success the display shows the result
 

@@ -114,6 +114,7 @@ SDL_Texture* zeroT = NULL;
 SDL_Texture* minusSignT = NULL;
 SDL_Texture* plusSignT = NULL;
 SDL_Texture* multiplyT = NULL;
+SDL_Texture* divideT = NULL;
 SDL_Texture* clearT = NULL;
 SDL_Texture* equalsT = NULL;
 
@@ -142,6 +143,7 @@ Button zero;
 Button plusSign;
 Button minusSign;
 Button multiply;
+Button divide;
 
 // command buttons
 Button clear;
@@ -161,6 +163,9 @@ void changeDisplay(int id) {
 	}
 	else if (id == 12) {
 		engine.inputOperator('*');
+	}
+	else if (id == 22) {
+		engine.inputOperator('/');
 	}
 	else if (id == 20) {
 		engine.clear();
@@ -187,6 +192,7 @@ SDL_Texture* textureForChar(char value) {
 		case '+': return plusSignT;
 		case '-': return minusSignT;
 		case '*': return multiplyT;
+		case '/': return divideT;
 		default:  return emptyT; // '\0' (empty slot) or anything unrenderable
 	}
 }
@@ -252,6 +258,7 @@ bool init() {
 	minusSign.init(middleX + 250, middleY, 100, 100, 10);
 	plusSign.init(middleX + 250, middleY + 125, 100, 100, 11);
 	multiply.init(middleX + 250, middleY - 125, 100, 100, 12);
+	divide.init(middleX - 250, middleY, 100, 100, 22); // left column, below clear
 
 	displayOne.init(middleX - 300, middleY - 250, 100, 100, 13);
 	displayTwo.init(middleX - 200, middleY - 250, 100, 100, 14);
@@ -303,13 +310,15 @@ bool loadMedia() {
 	minusSignT = loadTexture("minus.png");
 	plusSignT = loadTexture("plus.png");
 	multiplyT = loadTexture("multiply.png");
+	divideT = loadTexture("divide.png");
 	clearT = loadTexture("clear.png");
 	equalsT = loadTexture("equals.png");
 
 	if (emptyT == NULL || oneT == NULL || twoT == NULL || threeT == NULL ||
 		fourT == NULL || fiveT == NULL || sixT == NULL || sevenT == NULL ||
 		eightT == NULL || nineT == NULL || zeroT == NULL || minusSignT == NULL ||
-		plusSignT == NULL || multiplyT == NULL || clearT == NULL || equalsT == NULL) {
+		plusSignT == NULL || multiplyT == NULL || divideT == NULL ||
+		clearT == NULL || equalsT == NULL) {
 		return false;
 	}
 
@@ -327,6 +336,7 @@ bool loadMedia() {
 	plusSign.loadTexture(plusSignT);
 	minusSign.loadTexture(minusSignT);
 	multiply.loadTexture(multiplyT);
+	divide.loadTexture(divideT);
 	clear.loadTexture(clearT);
 	equalsSign.loadTexture(equalsT);
 
@@ -349,6 +359,7 @@ void close() {
 	SDL_DestroyTexture(plusSignT);
 	SDL_DestroyTexture(minusSignT);
 	SDL_DestroyTexture(multiplyT);
+	SDL_DestroyTexture(divideT);
 	SDL_DestroyTexture(clearT);
 	SDL_DestroyTexture(equalsT);
 
@@ -374,6 +385,7 @@ void handleButtonEvents(SDL_Event e) {
 	plusSign.handleEvent(&e);
 	minusSign.handleEvent(&e);
 	multiply.handleEvent(&e);
+	divide.handleEvent(&e);
 	clear.handleEvent(&e);
 	equalsSign.handleEvent(&e);
 }
@@ -403,6 +415,7 @@ void displayButtonTextures() {
 	plusSign.displayTexture();
 	minusSign.displayTexture();
 	multiply.displayTexture();
+	divide.displayTexture();
 	clear.displayTexture();
 	equalsSign.displayTexture();
 }
