@@ -21,17 +21,20 @@ namespace {
 	// Operator precedence (higher binds tighter); 0 for non-operators.
 	int precedence(char op) {
 		if (op == '+' || op == '-') return 1;
-		if (op == '*') return 2;
+		if (op == '*' || op == '/') return 2;
 		return 0;
 	}
 
 	// Applies a binary operator to two operands, writing the result to out;
-	// returns false for an unsupported operator.
+	// returns false for an unsupported operator or a division by zero.
 	bool applyOperator(int a, int b, char op, int& out) {
 		switch (op) {
 			case '+': out = a + b; return true;
 			case '-': out = a - b; return true;
 			case '*': out = a * b; return true;
+			// integer division, truncated toward zero; a zero divisor would be
+			// undefined behavior, so it is reported as a malformed equation
+			case '/': if (b == 0) return false; out = a / b; return true;
 		}
 		return false;
 	}
@@ -57,7 +60,7 @@ bool parseEquation(const string& equation, int& result) {
 			expectOperand = false;
 			continue;
 		}
-		if (c == '+' || c == '-' || c == '*') {
+		if (c == '+' || c == '-' || c == '*' || c == '/') {
 			if (expectOperand) return false; // operator with no preceding operand
 			// pop operators of higher-or-equal precedence (left-associative)
 			while (!operators.empty() && precedence(operators.back()) >= precedence(c)) {
@@ -139,7 +142,7 @@ void CalculatorEngine::inputDigit(int digit) {
 }
 
 void CalculatorEngine::inputOperator(char op) {
-	if (op == '+' || op == '-' || op == '*') {
+	if (op == '+' || op == '-' || op == '*' || op == '/') {
 		// an operator right after a result continues from that result
 		justEvaluated = false;
 		appendChar(op);

@@ -87,13 +87,13 @@ SDL runtime DLLs are found).
 ./simpleCalculator
 ```
 
-The button textures are PNG files (`one.png`, `plus.png`, `equals.png`, …) loaded
+The button textures are PNG files (`one.png`, `plus.png`, `divide.png`, …) loaded
 with relative paths via `IMG_Load`, so **run the program from the repository
 directory** where those assets live. Running it from elsewhere will fail to load
 the textures.
 
-The text/CLI frontend runs in a terminal — type digits and `+ - *`, then `=` to
-evaluate, `c` to clear, `q` to quit:
+The text/CLI frontend runs in a terminal — type digits and `+ - * /`, then `=`
+to evaluate, `c` to clear, `q` to quit:
 
 ```sh
 ./textCalculator
@@ -107,8 +107,15 @@ The test suite runs the engine + parser assertions and prints a summary:
 
 ## Supported operations
 
-Integer `+`, `-`, and `*` with standard precedence and left-associativity.
-Division and decimals are not yet supported (tracked in the issue tracker).
+Integer `+`, `-`, `*`, and `/` with standard precedence and left-associativity.
+
+Division is **integer** division, truncated toward zero — `7/2` is `3` and
+`0-7/2` is `-3`. Dividing by zero is rejected the same way any other malformed
+equation is: the GUI leaves the display unchanged, and the text frontend prints
+`(invalid equation)`.
+
+Decimal/floating-point values are not yet supported (tracked in the issue
+tracker).
 
 See the [issue tracker](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/issues)
 for known limitations and planned work.

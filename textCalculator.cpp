@@ -23,7 +23,7 @@ static void printDisplay(const CalculatorEngine& engine) {
 int main() {
 	CalculatorEngine engine;
 	cout << "Simple Calculator (text mode)\n";
-	cout << "Type digits and + - * to build an equation, then:\n";
+	cout << "Type digits and + - * / to build an equation, then:\n";
 	cout << "  '='  evaluate    'c'  clear    'q'  quit\n";
 	printDisplay(engine);
 
@@ -32,7 +32,7 @@ int main() {
 		for (char c : line) {
 			if (isdigit((unsigned char)c)) {
 				engine.inputDigit(c - '0');
-			} else if (c == '+' || c == '-' || c == '*') {
+			} else if (c == '+' || c == '-' || c == '*' || c == '/') {
 				engine.inputOperator(c);
 			} else if (c == 'c' || c == 'C') {
 				engine.clear();

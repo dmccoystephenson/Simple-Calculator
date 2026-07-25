@@ -33,12 +33,25 @@ static void testParser() {
 	assert(parseEquation("7-2-1", result) && result == 4);        // left-associative
 	assert(parseEquation(" 5 + 6 ", result) && result == 11);     // whitespace tolerated
 
+	// division: integer, truncated toward zero, same precedence as '*'
+	assert(parseEquation("8/2", result) && result == 4);
+	assert(parseEquation("7/2", result) && result == 3);          // truncates toward zero
+	assert(parseEquation("0-7/2", result) && result == -3);       // truncates toward zero, not down
+	assert(parseEquation("100/5/2", result) && result == 10);     // left-associative
+	assert(parseEquation("2+8/4", result) && result == 4);        // '/' binds tighter than '+'
+	assert(parseEquation("8/4+2", result) && result == 4);        // precedence, other order
+	assert(parseEquation("2*6/4", result) && result == 3);        // equal precedence, left to right
+	assert(parseEquation("6/4*2", result) && result == 2);        // (6/4)*2 == 2, not 6/(4*2)
+
 	// malformed input / unsupported characters
 	assert(!parseEquation("", result));      // empty
 	assert(!parseEquation("2+", result));    // trailing operator
 	assert(!parseEquation("+2", result));    // leading operator
 	assert(!parseEquation("2#3", result));   // unsupported character
 	assert(!parseEquation("2 3", result));   // two operands, no operator
+	assert(!parseEquation("2/", result));    // trailing division operator
+	assert(!parseEquation("4/0", result));   // division by zero is rejected
+	assert(!parseEquation("1+4/0", result)); // division by zero anywhere fails the whole equation
 }
 
 static void testEngineInput() {
@@ -75,10 +88,28 @@ static void testEngineInput() {
 	assert(engine.equationText() == "5+4");
 	assert(engine.evaluate(result) && result == 9);
 
+	// division is accepted like any other operator
+	engine.clear();
+	engine.inputDigit(9);
+	engine.inputOperator('/');
+	engine.inputDigit(3);
+	assert(engine.equationText() == "9/3");
+	assert(displayString(engine) == "9/3____");
+	assert(engine.evaluate(result) && result == 3);
+	assert(displayString(engine) == "3______");
+
+	// dividing by zero fails and leaves the equation untouched
+	engine.clear();
+	engine.inputDigit(6);
+	engine.inputOperator('/');
+	engine.inputDigit(0);
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "6/0");
+
 	// out-of-range / unsupported input is ignored
 	engine.clear();
 	engine.inputDigit(42);     // ignored
-	engine.inputOperator('/'); // ignored (division is not supported)
+	engine.inputOperator('%'); // ignored (modulo is not supported)
 	assert(engine.equationText() == "");
 
 	// clear resets everything
