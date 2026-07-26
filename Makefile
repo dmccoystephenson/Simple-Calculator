@@ -20,7 +20,12 @@ textCalculator: textCalculator.cpp $(ENGINE)
 testingParsing: testingParsing.cpp $(ENGINE)
 	$(CXX) $(CXXFLAGS) testingParsing.cpp CalculatorEngine.cpp -o testingParsing
 
+# Rebuilds the self-tests if any source changed, then runs them; a failing
+# assertion aborts with a non-zero status, so this fails the make invocation.
+test: testingParsing
+	./testingParsing
+
 clean:
 	rm -f simpleCalculator textCalculator testingParsing simpleCalculator.exe testingParsing.exe textCalculator.exe
 
-.PHONY: all clean
+.PHONY: all clean test

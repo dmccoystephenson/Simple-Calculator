@@ -16,7 +16,9 @@
 // algorithm (supports +, -, *, / with standard precedence and
 // left-associativity). Division is integer division, truncated toward zero.
 // Returns true and writes the value to result on success; returns false on
-// malformed/empty input, an unsupported character, or division by zero.
+// malformed/empty input, an unsupported character, division by zero, or a
+// literal/intermediate/final value outside the int range (overflow is
+// rejected as malformed rather than being allowed to wrap).
 bool parseEquation(const std::string& equation, int& result);
 
 class CalculatorEngine {

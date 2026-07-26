@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <cassert>
+#include <climits>
 
 using namespace std;
 
@@ -42,6 +43,19 @@ static void testParser() {
 	assert(parseEquation("8/4+2", result) && result == 4);        // precedence, other order
 	assert(parseEquation("2*6/4", result) && result == 3);        // equal precedence, left to right
 	assert(parseEquation("6/4*2", result) && result == 2);        // (6/4)*2 == 2, not 6/(4*2)
+
+	// values at the edge of the int range still evaluate normally
+	assert(parseEquation("2147483647", result) && result == INT_MAX);       // INT_MAX literal
+	assert(parseEquation("2147483646+1", result) && result == INT_MAX);     // sum lands exactly on INT_MAX
+	assert(parseEquation("0-2147483647", result) && result == -INT_MAX);    // just inside the low end
+
+	// overflow is rejected as malformed rather than wrapping (undefined behavior)
+	assert(!parseEquation("2147483648", result));            // literal is INT_MAX + 1
+	assert(!parseEquation("99999999999999999999", result));  // literal far past INT_MAX
+	assert(!parseEquation("2147483647+1", result));          // addition overflows
+	assert(!parseEquation("0-2147483647-2", result));        // subtraction underflows past INT_MIN
+	assert(!parseEquation("99999*99999", result));           // product is 9,999,800,001
+	assert(!parseEquation("2+99999999999", result));         // oversized literal fails the whole equation
 
 	// malformed input / unsupported characters
 	assert(!parseEquation("", result));      // empty
