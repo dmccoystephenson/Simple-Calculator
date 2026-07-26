@@ -120,8 +120,9 @@ is: the GUI leaves the display unchanged, and the text frontend prints
 
 Values are 32-bit `int`s. An equation whose literals, intermediate steps, or
 final result fall outside that range (roughly ±2.1 billion) is rejected as
-malformed rather than silently wrapping around — so `99999*99999` reports an
-invalid equation instead of returning a negative number.
+malformed rather than silently wrapping around — so `99999*99999`, whose true
+value is 9,999,800,001, reports an invalid equation instead of an unrelated
+in-range number.
 
 Decimal/floating-point values are not yet supported (tracked in the issue
 tracker).
