@@ -40,6 +40,7 @@ With the provided `Makefile`:
 
 ```sh
 make            # builds simpleCalculator, textCalculator, and testingParsing
+make test       # builds (if needed) and runs the engine + parser test suite
 make clean      # removes built binaries
 ```
 
@@ -99,9 +100,12 @@ to evaluate, `c` to clear, `q` to quit:
 ./textCalculator
 ```
 
-The test suite runs the engine + parser assertions and prints a summary:
+The test suite runs the engine + parser assertions and prints a summary. A
+failing assertion aborts with a non-zero status, so it works as a check in
+scripts and CI:
 
 ```sh
+make test       # rebuilds first if sources changed
 ./testingParsing
 ```
 
@@ -113,6 +117,11 @@ Division is **integer** division, truncated toward zero — `7/2` is `3`, not `4
 or `3.5`. Dividing by zero is rejected the same way any other malformed equation
 is: the GUI leaves the display unchanged, and the text frontend prints
 `(invalid equation)`.
+
+Values are 32-bit `int`s. An equation whose literals, intermediate steps, or
+final result fall outside that range (roughly ±2.1 billion) is rejected as
+malformed rather than silently wrapping around — so `99999*99999` reports an
+invalid equation instead of returning a negative number.
 
 Decimal/floating-point values are not yet supported (tracked in the issue
 tracker).

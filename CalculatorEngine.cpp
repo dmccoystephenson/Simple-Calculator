@@ -3,6 +3,7 @@
 #include <queue>
 #include <vector>
 #include <cctype>
+#include <climits>
 
 using namespace std;
 
@@ -25,16 +26,34 @@ namespace {
 		return 0;
 	}
 
+	// The range checks below only work if long long is strictly wider than int,
+	// so that every int-by-int sum/difference/product is exactly representable.
+	static_assert(sizeof(long long) > sizeof(int),
+		"overflow detection needs long long to be wider than int");
+
+	// Narrows a wide intermediate value back to int, writing it to out; returns
+	// false if the value is outside the int range. Overflowing int is undefined
+	// behavior, so every arithmetic result is computed wide and range-checked
+	// here rather than being allowed to wrap.
+	bool narrowToInt(long long value, int& out) {
+		if (value < INT_MIN || value > INT_MAX) return false;
+		out = (int)value;
+		return true;
+	}
+
 	// Applies a binary operator to two operands, writing the result to out;
-	// returns false for an unsupported operator or a division by zero.
+	// returns false for an unsupported operator, a division by zero, or a
+	// result that does not fit in an int.
 	bool applyOperator(int a, int b, char op, int& out) {
+		long long x = a;
+		long long y = b;
 		switch (op) {
-			case '+': out = a + b; return true;
-			case '-': out = a - b; return true;
-			case '*': out = a * b; return true;
+			case '+': return narrowToInt(x + y, out);
+			case '-': return narrowToInt(x - y, out);
+			case '*': return narrowToInt(x * y, out);
 			// integer division, truncated toward zero; a zero divisor would be
 			// undefined behavior, so it is reported as a malformed equation
-			case '/': if (b == 0) return false; out = a / b; return true;
+			case '/': if (b == 0) return false; return narrowToInt(x / y, out);
 		}
 		return false;
 	}
@@ -51,12 +70,16 @@ bool parseEquation(const string& equation, int& result) {
 		char c = equation[i];
 		if (isspace((unsigned char)c)) { i++; continue; }
 		if (isdigit((unsigned char)c)) {
-			int num = 0;
+			// accumulated wide so a long digit run cannot overflow mid-loop;
+			// bailing out as soon as it passes INT_MAX also keeps the running
+			// total far away from the long long range
+			long long num = 0;
 			while (i < n && isdigit((unsigned char)equation[i])) {
 				num = num * 10 + (equation[i] - '0');
+				if (num > INT_MAX) return false; // literal too large for an int
 				i++;
 			}
-			output.push({true, num, 0});
+			output.push({true, (int)num, 0});
 			expectOperand = false;
 			continue;
 		}
