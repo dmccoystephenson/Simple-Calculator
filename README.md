@@ -124,6 +124,11 @@ malformed rather than silently wrapping around — so `99999*99999`, whose true
 value is 9,999,800,001, reports an invalid equation instead of an unrelated
 in-range number.
 
+The display has 7 fixed slots. A result that fits within its `int` range but
+whose decimal representation is longer than 7 characters is rejected the same
+way — the equation/display are left untouched — rather than being shown
+truncated to a shorter, different-looking number.
+
 Decimal/floating-point values are not yet supported (tracked in the issue
 tracker).
 

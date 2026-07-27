@@ -369,6 +369,7 @@ void close() {
 
 	// exit SDL subystems
 	IMG_Quit();
+	SDL_Quit();
 }
 
 void handleButtonEvents(SDL_Event e) {
@@ -424,6 +425,7 @@ void displayButtonTextures() {
 int main(int, char*[]) {
 	if (!init()) {
 		cerr << "Initialization failed, exiting." << endl;
+		close(); // tear down whatever init() managed to set up before it failed
 		return 1;
 	}
 
