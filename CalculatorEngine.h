@@ -32,7 +32,8 @@ class CalculatorEngine {
 	void inputDigit(int digit);   // digit in [0, 9]; out-of-range is ignored
 	void inputOperator(char op);  // op in {'+', '-', '*', '/'}; others are ignored
 	void clear();                 // reset to the empty state
-	bool evaluate(int& result);   // evaluate; on success the display shows the result
+	bool evaluate(int& result);   // evaluate; fails (display untouched) if the equation is
+	                               // malformed or the result is wider than SLOT_COUNT chars
 
 	// Presentation queries — a frontend reads these to render the display.
 	const std::string& equationText() const; // the full equation built so far

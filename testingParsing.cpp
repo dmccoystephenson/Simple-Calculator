@@ -137,6 +137,50 @@ static void testEngineInput() {
 	engine.inputOperator('+');
 	assert(!engine.evaluate(result));
 	assert(engine.equationText() == "2+");
+
+	// a result that exactly fills the 7-slot display still shows in full
+	engine.clear();
+	engine.inputDigit(5);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputOperator('+');
+	engine.inputDigit(4);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	assert(engine.evaluate(result) && result == 9999999);
+	assert(displayString(engine) == "9999999");
+
+	// a result one digit too wide for the display is rejected rather than
+	// silently truncated, leaving the equation/display untouched
+	engine.clear();
+	engine.inputDigit(5);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputOperator('+');
+	engine.inputDigit(4);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	assert(engine.equationText() == "50000000+49999999");
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "50000000+49999999");
 }
 
 int main() {

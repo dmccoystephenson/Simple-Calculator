@@ -185,7 +185,14 @@ bool CalculatorEngine::evaluate(int& result) {
 	if (!parseEquation(equation, result)) {
 		return false;
 	}
-	setDisplay(to_string(result));
+	// A result that does not fit in the fixed-width display cannot be shown
+	// truthfully, so it is rejected the same way a malformed equation is
+	// (equation/display left untouched) rather than being silently truncated.
+	string text = to_string(result);
+	if ((int)text.size() > SLOT_COUNT) {
+		return false;
+	}
+	setDisplay(text);
 	justEvaluated = true;
 	return true;
 }
