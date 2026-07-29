@@ -109,6 +109,7 @@ SDL_Texture* multiplyT = NULL;
 SDL_Texture* divideT = NULL;
 SDL_Texture* clearT = NULL;
 SDL_Texture* equalsT = NULL;
+SDL_Texture* decimalT = NULL;
 
 // display slot buttons (top row, ids 13-19), indexed 0-6
 Button displaySlots[CalculatorEngine::SLOT_COUNT];
@@ -121,6 +122,7 @@ Button plusSign;
 Button minusSign;
 Button multiply;
 Button divide;
+Button decimalPoint;
 
 // command buttons
 Button clear;
@@ -152,11 +154,14 @@ void changeDisplay(int id) {
 	else if (id == 22) {
 		engine.inputOperator('/');
 	}
+	else if (id == 23) {
+		engine.inputDecimalPoint();
+	}
 	else if (id == 20) {
 		engine.clear();
 	}
 	else if (id == 21) {
-		int result = 0;
+		double result = 0;
 		engine.evaluate(result); // the engine updates its display to show the result
 	}
 }
@@ -171,6 +176,7 @@ SDL_Texture* textureForChar(char value) {
 		case '-': return minusSignT;
 		case '*': return multiplyT;
 		case '/': return divideT;
+		case '.': return decimalT;
 		default:  return emptyT; // '\0' (empty slot) or anything unrenderable
 	}
 }
@@ -233,6 +239,7 @@ bool init() {
 	plusSign.init(middleX + 250, middleY + 125, 100, 100, 11);
 	multiply.init(middleX + 250, middleY - 125, 100, 100, 12);
 	divide.init(middleX - 250, middleY, 100, 100, 22); // left column, below clear
+	decimalPoint.init(middleX - 250, middleY + 125, 100, 100, 23); // left column, below divide
 
 	displaySlots[0].init(middleX - 300, middleY - 250, 100, 100, 13);
 	displaySlots[1].init(middleX - 200, middleY - 250, 100, 100, 14);
@@ -254,6 +261,7 @@ bool init() {
 	clickableButtons.push_back(&plusSign);
 	clickableButtons.push_back(&multiply);
 	clickableButtons.push_back(&divide);
+	clickableButtons.push_back(&decimalPoint);
 	clickableButtons.push_back(&clear);
 	clickableButtons.push_back(&equalsSign);
 
@@ -301,9 +309,11 @@ bool loadMedia() {
 	divideT = loadTexture("divide.png");
 	clearT = loadTexture("clear.png");
 	equalsT = loadTexture("equals.png");
+	decimalT = loadTexture("decimal.png");
 
 	if (emptyT == NULL || minusSignT == NULL || plusSignT == NULL ||
-		multiplyT == NULL || divideT == NULL || clearT == NULL || equalsT == NULL) {
+		multiplyT == NULL || divideT == NULL || clearT == NULL || equalsT == NULL ||
+		decimalT == NULL) {
 		return false;
 	}
 	for (int i = 0; i < 10; i++) {
@@ -320,6 +330,7 @@ bool loadMedia() {
 	minusSign.loadTexture(minusSignT);
 	multiply.loadTexture(multiplyT);
 	divide.loadTexture(divideT);
+	decimalPoint.loadTexture(decimalT);
 	clear.loadTexture(clearT);
 	equalsSign.loadTexture(equalsT);
 
@@ -338,6 +349,7 @@ void close() {
 	SDL_DestroyTexture(divideT);
 	SDL_DestroyTexture(clearT);
 	SDL_DestroyTexture(equalsT);
+	SDL_DestroyTexture(decimalT);
 
 	// destroy renderer and window (renderer first, per SDL convention)
 	SDL_DestroyRenderer(renderer);
