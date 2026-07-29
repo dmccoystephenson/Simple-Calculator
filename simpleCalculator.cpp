@@ -4,6 +4,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <iostream>
+#include <vector>
 #include "CalculatorEngine.h"
 
 // using namespace std
@@ -101,16 +102,7 @@ class Button {
 
 // textures
 SDL_Texture* emptyT = NULL;
-SDL_Texture* oneT = NULL;
-SDL_Texture* twoT = NULL;
-SDL_Texture* threeT = NULL;
-SDL_Texture* fourT = NULL;
-SDL_Texture* fiveT = NULL;
-SDL_Texture* sixT = NULL;
-SDL_Texture* sevenT = NULL;
-SDL_Texture* eightT = NULL;
-SDL_Texture* nineT = NULL;
-SDL_Texture* zeroT = NULL;
+SDL_Texture* digitTextures[10] = {NULL}; // index == digit value (0-9)
 SDL_Texture* minusSignT = NULL;
 SDL_Texture* plusSignT = NULL;
 SDL_Texture* multiplyT = NULL;
@@ -118,26 +110,11 @@ SDL_Texture* divideT = NULL;
 SDL_Texture* clearT = NULL;
 SDL_Texture* equalsT = NULL;
 
-// display slot buttons (top row, ids 13-19)
-Button displayOne;
-Button displayTwo;
-Button displayThree;
-Button displayFour;
-Button displayFive;
-Button displaySix;
-Button displaySeven;
+// display slot buttons (top row, ids 13-19), indexed 0-6
+Button displaySlots[CalculatorEngine::SLOT_COUNT];
 
-// digit buttons (ids 0-9)
-Button one;
-Button two;
-Button three;
-Button four;
-Button five;
-Button six;
-Button seven;
-Button eight;
-Button nine;
-Button zero;
+// digit buttons, indexed by digit value (ids 0-9)
+Button digitButtons[10];
 
 // operator buttons
 Button plusSign;
@@ -148,6 +125,14 @@ Button divide;
 // command buttons
 Button clear;
 Button equalsSign;
+
+// every clickable button, populated once in init(); handleButtonEvents() iterates this
+// instead of listing each button by name
+vector<Button*> clickableButtons;
+
+// clickableButtons plus the display slots, populated once in init();
+// displayButtonTextures() iterates this instead of listing each button by name
+vector<Button*> allButtons;
 
 // Routes a clicked button id to the engine. Digit ids (0-9) and operator/command
 // ids drive the calculation; display-slot ids (13-19) are inert.
@@ -178,17 +163,10 @@ void changeDisplay(int id) {
 
 // Maps a display character produced by the engine to the texture that draws it.
 SDL_Texture* textureForChar(char value) {
+	if (value >= '0' && value <= '9') {
+		return digitTextures[value - '0'];
+	}
 	switch (value) {
-		case '0': return zeroT;
-		case '1': return oneT;
-		case '2': return twoT;
-		case '3': return threeT;
-		case '4': return fourT;
-		case '5': return fiveT;
-		case '6': return sixT;
-		case '7': return sevenT;
-		case '8': return eightT;
-		case '9': return nineT;
 		case '+': return plusSignT;
 		case '-': return minusSignT;
 		case '*': return multiplyT;
@@ -199,12 +177,8 @@ SDL_Texture* textureForChar(char value) {
 
 // Refreshes the seven display-slot buttons from the engine's current display.
 void syncDisplay() {
-	Button* displaySlots[CalculatorEngine::SLOT_COUNT] = {
-		&displayOne, &displayTwo, &displayThree, &displayFour,
-		&displayFive, &displaySix, &displaySeven
-	};
 	for (int i = 0; i < engine.slotCount(); i++) {
-		displaySlots[i]->loadTexture(textureForChar(engine.slotChar(i)));
+		displaySlots[i].loadTexture(textureForChar(engine.slotChar(i)));
 	}
 }
 
@@ -244,32 +218,49 @@ bool init() {
 	int middleY = SCREEN_HEIGHT/2 - 50;
 
 	// initialize buttons
-	zero.init(middleX, middleY + 250, 100, 100, 0);
-	one.init(middleX - 125, middleY + 125, 100, 100, 1);
-	two.init(middleX, middleY + 125, 100, 100, 2);
-	three.init(middleX + 125, middleY + 125, 100, 100, 3);
-	four.init(middleX - 125, middleY, 100, 100, 4);
-	five.init(middleX, middleY, 100, 100, 5);
-	six.init(middleX + 125, middleY, 100, 100, 6);
-	seven.init(middleX - 125, middleY - 125, 100, 100, 7);
-	eight.init(middleX, middleY - 125, 100, 100, 8);
-	nine.init(middleX + 125, middleY - 125, 100, 100, 9);
+	digitButtons[0].init(middleX, middleY + 250, 100, 100, 0);
+	digitButtons[1].init(middleX - 125, middleY + 125, 100, 100, 1);
+	digitButtons[2].init(middleX, middleY + 125, 100, 100, 2);
+	digitButtons[3].init(middleX + 125, middleY + 125, 100, 100, 3);
+	digitButtons[4].init(middleX - 125, middleY, 100, 100, 4);
+	digitButtons[5].init(middleX, middleY, 100, 100, 5);
+	digitButtons[6].init(middleX + 125, middleY, 100, 100, 6);
+	digitButtons[7].init(middleX - 125, middleY - 125, 100, 100, 7);
+	digitButtons[8].init(middleX, middleY - 125, 100, 100, 8);
+	digitButtons[9].init(middleX + 125, middleY - 125, 100, 100, 9);
 
 	minusSign.init(middleX + 250, middleY, 100, 100, 10);
 	plusSign.init(middleX + 250, middleY + 125, 100, 100, 11);
 	multiply.init(middleX + 250, middleY - 125, 100, 100, 12);
 	divide.init(middleX - 250, middleY, 100, 100, 22); // left column, below clear
 
-	displayOne.init(middleX - 300, middleY - 250, 100, 100, 13);
-	displayTwo.init(middleX - 200, middleY - 250, 100, 100, 14);
-	displayThree.init(middleX - 100, middleY - 250, 100, 100, 15);
-	displayFour.init(middleX, middleY - 250, 100, 100, 16);
-	displayFive.init(middleX + 100, middleY - 250, 100, 100, 17);
-	displaySix.init(middleX + 200, middleY - 250, 100, 100, 18);
-	displaySeven.init(middleX + 300, middleY - 250, 100, 100, 19);
+	displaySlots[0].init(middleX - 300, middleY - 250, 100, 100, 13);
+	displaySlots[1].init(middleX - 200, middleY - 250, 100, 100, 14);
+	displaySlots[2].init(middleX - 100, middleY - 250, 100, 100, 15);
+	displaySlots[3].init(middleX, middleY - 250, 100, 100, 16);
+	displaySlots[4].init(middleX + 100, middleY - 250, 100, 100, 17);
+	displaySlots[5].init(middleX + 200, middleY - 250, 100, 100, 18);
+	displaySlots[6].init(middleX + 300, middleY - 250, 100, 100, 19);
 
 	clear.init(middleX - 250, middleY - 125, 100, 100, 20);
 	equalsSign.init(middleX + 250, middleY + 250, 100, 100, 21);
+
+	// populate the button containers now that every button has its position/id
+	clickableButtons.clear();
+	for (int i = 0; i < 10; i++) {
+		clickableButtons.push_back(&digitButtons[i]);
+	}
+	clickableButtons.push_back(&minusSign);
+	clickableButtons.push_back(&plusSign);
+	clickableButtons.push_back(&multiply);
+	clickableButtons.push_back(&divide);
+	clickableButtons.push_back(&clear);
+	clickableButtons.push_back(&equalsSign);
+
+	allButtons = clickableButtons;
+	for (int i = 0; i < CalculatorEngine::SLOT_COUNT; i++) {
+		allButtons.push_back(&displaySlots[i]);
+	}
 
 	return true;
 }
@@ -296,17 +287,14 @@ SDL_Texture* loadTexture(const char* path) {
 
 bool loadMedia() {
 	// initialize textures
+	static const char* digitPaths[10] = {
+		"zero.png", "one.png", "two.png", "three.png", "four.png",
+		"five.png", "six.png", "seven.png", "eight.png", "nine.png"
+	};
 	emptyT = loadTexture("empty.png");
-	oneT = loadTexture("one.png");
-	twoT = loadTexture("two.png");
-	threeT = loadTexture("three.png");
-	fourT = loadTexture("four.png");
-	fiveT = loadTexture("five.png");
-	sixT = loadTexture("six.png");
-	sevenT = loadTexture("seven.png");
-	eightT = loadTexture("eight.png");
-	nineT = loadTexture("nine.png");
-	zeroT = loadTexture("zero.png");
+	for (int i = 0; i < 10; i++) {
+		digitTextures[i] = loadTexture(digitPaths[i]);
+	}
 	minusSignT = loadTexture("minus.png");
 	plusSignT = loadTexture("plus.png");
 	multiplyT = loadTexture("multiply.png");
@@ -314,25 +302,20 @@ bool loadMedia() {
 	clearT = loadTexture("clear.png");
 	equalsT = loadTexture("equals.png");
 
-	if (emptyT == NULL || oneT == NULL || twoT == NULL || threeT == NULL ||
-		fourT == NULL || fiveT == NULL || sixT == NULL || sevenT == NULL ||
-		eightT == NULL || nineT == NULL || zeroT == NULL || minusSignT == NULL ||
-		plusSignT == NULL || multiplyT == NULL || divideT == NULL ||
-		clearT == NULL || equalsT == NULL) {
+	if (emptyT == NULL || minusSignT == NULL || plusSignT == NULL ||
+		multiplyT == NULL || divideT == NULL || clearT == NULL || equalsT == NULL) {
 		return false;
+	}
+	for (int i = 0; i < 10; i++) {
+		if (digitTextures[i] == NULL) {
+			return false;
+		}
 	}
 
 	// load button textures (display slots are filled each frame by syncDisplay)
-	one.loadTexture(oneT);
-	two.loadTexture(twoT);
-	three.loadTexture(threeT);
-	four.loadTexture(fourT);
-	five.loadTexture(fiveT);
-	six.loadTexture(sixT);
-	seven.loadTexture(sevenT);
-	eight.loadTexture(eightT);
-	nine.loadTexture(nineT);
-	zero.loadTexture(zeroT);
+	for (int i = 0; i < 10; i++) {
+		digitButtons[i].loadTexture(digitTextures[i]);
+	}
 	plusSign.loadTexture(plusSignT);
 	minusSign.loadTexture(minusSignT);
 	multiply.loadTexture(multiplyT);
@@ -346,16 +329,9 @@ bool loadMedia() {
 void close() {
 	// free resources
 	SDL_DestroyTexture(emptyT);
-	SDL_DestroyTexture(oneT);
-	SDL_DestroyTexture(twoT);
-	SDL_DestroyTexture(threeT);
-	SDL_DestroyTexture(fourT);
-	SDL_DestroyTexture(fiveT);
-	SDL_DestroyTexture(sixT);
-	SDL_DestroyTexture(sevenT);
-	SDL_DestroyTexture(eightT);
-	SDL_DestroyTexture(nineT);
-	SDL_DestroyTexture(zeroT);
+	for (int i = 0; i < 10; i++) {
+		SDL_DestroyTexture(digitTextures[i]);
+	}
 	SDL_DestroyTexture(plusSignT);
 	SDL_DestroyTexture(minusSignT);
 	SDL_DestroyTexture(multiplyT);
@@ -373,52 +349,18 @@ void close() {
 }
 
 void handleButtonEvents(SDL_Event e) {
-	one.handleEvent(&e);
-	two.handleEvent(&e);
-	three.handleEvent(&e);
-	four.handleEvent(&e);
-	five.handleEvent(&e);
-	six.handleEvent(&e);
-	seven.handleEvent(&e);
-	eight.handleEvent(&e);
-	nine.handleEvent(&e);
-	zero.handleEvent(&e);
-	plusSign.handleEvent(&e);
-	minusSign.handleEvent(&e);
-	multiply.handleEvent(&e);
-	divide.handleEvent(&e);
-	clear.handleEvent(&e);
-	equalsSign.handleEvent(&e);
+	for (Button* button : clickableButtons) {
+		button->handleEvent(&e);
+	}
 }
 
 void displayButtonTextures() {
 	// refresh the display slots from the engine, then draw every button
 	syncDisplay();
 
-	displayOne.displayTexture();
-	displayTwo.displayTexture();
-	displayThree.displayTexture();
-	displayFour.displayTexture();
-	displayFive.displayTexture();
-	displaySix.displayTexture();
-	displaySeven.displayTexture();
-
-	one.displayTexture();
-	two.displayTexture();
-	three.displayTexture();
-	four.displayTexture();
-	five.displayTexture();
-	six.displayTexture();
-	seven.displayTexture();
-	eight.displayTexture();
-	nine.displayTexture();
-	zero.displayTexture();
-	plusSign.displayTexture();
-	minusSign.displayTexture();
-	multiply.displayTexture();
-	divide.displayTexture();
-	clear.displayTexture();
-	equalsSign.displayTexture();
+	for (Button* button : allButtons) {
+		button->displayTexture();
+	}
 }
 
 // argc/argv are unnamed: SDL requires this signature, but the app uses neither
