@@ -111,26 +111,30 @@ make test       # rebuilds first if sources changed
 
 ## Supported operations
 
-Integer `+`, `-`, `*`, and `/` with standard precedence and left-associativity.
+`+`, `-`, `*`, and `/` with standard precedence and left-associativity, on
+floating-point (decimal) values.
 
-Division is **integer** division, truncated toward zero — `7/2` is `3`, not `4`
-or `3.5`. Dividing by zero is rejected the same way any other malformed equation
-is: the GUI leaves the display unchanged, and the text frontend prints
-`(invalid equation)`.
+A number literal may include at most one decimal point — `2.5`, `.5`, and `2.`
+are all valid ways to enter a value, while `2.3.4` (a second `.` in the same
+number) is rejected as malformed. Division is true division, not truncated —
+`7/2` is `3.5`. Dividing by zero is rejected the same way any other malformed
+equation is: the GUI leaves the display unchanged, and the text frontend
+prints `(invalid equation)`.
 
-Values are 32-bit `int`s. An equation whose literals, intermediate steps, or
-final result fall outside that range (roughly ±2.1 billion) is rejected as
-malformed rather than silently wrapping around — so `99999*99999`, whose true
-value is 9,999,800,001, reports an invalid equation instead of an unrelated
-in-range number.
+Values are `double`s. An equation whose literals or intermediate/final results
+overflow to infinity is rejected as malformed rather than silently producing
+`inf`.
 
-The display has 7 fixed slots. A result that fits within its `int` range but
-whose decimal representation is longer than 7 characters is rejected the same
-way — the equation/display are left untouched — rather than being shown
-truncated to a shorter, different-looking number.
-
-Decimal/floating-point values are not yet supported (tracked in the issue
-tracker).
+The display has 7 fixed slots (the GUI and text frontend both render from the
+same underlying state, so they always agree on what a result looks like). A
+result is rounded to fit: the integer part is always shown in full (rejecting
+the result if it alone is wider than 7 characters, e.g. `50000000+49999999`),
+and whatever slots remain are used for a decimal point and as many fractional
+digits as fit — so `1/4` displays as `0.25`, but a result with a longer,
+non-terminating fraction is rounded, not shown truncated after however many
+digits happen to fit. A result that is a whole number once rounded (e.g. `4/2`
+or a fraction that rounds away entirely) is shown with no decimal point, the
+same way integer division always displayed results.
 
 See the [issue tracker](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/issues)
 for known limitations and planned work.

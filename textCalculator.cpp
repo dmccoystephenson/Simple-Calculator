@@ -23,7 +23,7 @@ static void printDisplay(const CalculatorEngine& engine) {
 int main() {
 	CalculatorEngine engine;
 	cout << "Simple Calculator (text mode)\n";
-	cout << "Type digits and + - * / to build an equation, then:\n";
+	cout << "Type digits, '.', and + - * / to build an equation, then:\n";
 	cout << "  '='  evaluate    'c'  clear    'q'  quit\n";
 	printDisplay(engine);
 
@@ -34,14 +34,18 @@ int main() {
 				engine.inputDigit(c - '0');
 			} else if (c == '+' || c == '-' || c == '*' || c == '/') {
 				engine.inputOperator(c);
+			} else if (c == '.') {
+				engine.inputDecimalPoint();
 			} else if (c == 'c' || c == 'C') {
 				engine.clear();
 			} else if (c == 'q' || c == 'Q') {
 				return 0;
 			} else if (c == '=') {
-				int result = 0;
+				double result = 0;
 				if (engine.evaluate(result)) {
-					cout << "= " << result << "\n";
+					// print what the display now shows, so the text frontend never
+					// disagrees with the GUI about how a result is rounded/formatted
+					cout << "= " << engine.equationText() << "\n";
 				} else {
 					cout << "(invalid equation)\n";
 				}
