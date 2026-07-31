@@ -240,6 +240,28 @@ static void testEngineInput() {
 	engine.inputDecimalPoint();
 	engine.inputDigit(5);
 	assert(engine.equationText() == ".5");
+
+	// a negative result displays with a leading '-' (the sign counts against
+	// the 7-slot budget, same as formatForDisplay documents)
+	engine.clear();
+	engine.inputDigit(3);
+	engine.inputOperator('-');
+	engine.inputDigit(1);
+	engine.inputDigit(0);
+	assert(engine.evaluate(result) && result == -7);
+	assert(engine.equationText() == "-7");
+	assert(displayString(engine) == "-7_____");
+
+	// a negative result with a fractional part still fits the sign, integer
+	// part, '.', and fraction within the 7-slot budget
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('-');
+	engine.inputDigit(3);
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	assert(engine.evaluate(result) && result == -2.5);
+	assert(displayString(engine) == "-2.5___");
 }
 
 int main() {
