@@ -82,8 +82,15 @@ static void testParser() {
 
 static void testEngineInput() {
 	CalculatorEngine engine;
+	double result = 0;
 
 	// a fresh engine has an empty equation and empty display
+	assert(engine.equationText() == "");
+	assert(displayString(engine) == "_______");
+
+	// evaluating a still-empty equation fails and leaves the display untouched,
+	// the same way parseEquation("") does at the parser level
+	assert(!engine.evaluate(result));
 	assert(engine.equationText() == "");
 	assert(displayString(engine) == "_______");
 
@@ -96,7 +103,6 @@ static void testEngineInput() {
 	assert(displayString(engine) == "12+3___");
 
 	// evaluating shows the result on the display
-	double result = 0;
 	assert(engine.evaluate(result) && result == 15);
 	assert(engine.equationText() == "15");
 	assert(displayString(engine) == "15_____");
@@ -193,6 +199,15 @@ static void testEngineInput() {
 	assert(engine.equationText() == "50000000+49999999");
 	assert(!engine.evaluate(result));
 	assert(engine.equationText() == "50000000+49999999");
+
+	// a decimal point as the very first input on a fresh equation (not mid-number,
+	// not right after a result) starts a leading-dot literal, same as ".5+1" at
+	// the parser level
+	engine.clear();
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	assert(engine.equationText() == ".5");
+	assert(engine.evaluate(result) && result == 0.5);
 
 	// a decimal point feeds the display and the eventual parse like any digit
 	engine.clear();
