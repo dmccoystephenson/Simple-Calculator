@@ -121,6 +121,15 @@ number) is rejected as malformed. Division is true division, not truncated —
 equation is: the GUI leaves the display unchanged, and the text frontend
 prints `(invalid equation)`.
 
+A `-` typed where a value is expected is a sign rather than a subtraction, so a
+negative number can be entered directly (`-` then `7` evaluates to `-7`) and a
+calculation can continue from a negative result — after `3 - 10` shows `-7`,
+pressing `+ 3 =` gives `-4`. The sign belongs to the number it precedes, not to
+the rest of the equation, so `2*-3` is `-6` and `5--3` is `8`. Only one sign is
+allowed per position: pressing `-` a third time in a row (`5---3`) is rejected
+as malformed, the same way any other doubled operator (`5+*3`) is, and a leading
+`+` is likewise still rejected.
+
 Values are `double`s. An equation whose literals or intermediate/final results
 overflow to infinity is rejected as malformed rather than silently producing
 `inf`.
@@ -134,7 +143,8 @@ digits as fit — so `1/4` displays as `0.25`, but a result with a longer,
 non-terminating fraction is rounded, not shown truncated after however many
 digits happen to fit. A result that is a whole number once rounded (e.g. `4/2`
 or a fraction that rounds away entirely) is shown with no decimal point, the
-same way integer division always displayed results.
+same way integer division always displayed results. A negative result too small
+to survive that rounding displays as a plain `0` rather than a misleading `-0`.
 
 See the [issue tracker](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/issues)
 for known limitations and planned work.

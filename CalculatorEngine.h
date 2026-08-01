@@ -15,10 +15,14 @@
 // Evaluates a floating-point arithmetic expression using the shunting-yard
 // algorithm (supports +, -, *, / with standard precedence and
 // left-associativity). A number literal may include at most one decimal
-// point (".5", "2.", and "2.5" are all valid; "2.3.4" is not). Returns true
-// and writes the value to result on success; returns false on malformed/empty
-// input, an unsupported character, division by zero, or a literal/
-// intermediate/final value that is not finite (e.g. overflows to infinity).
+// point (".5", "2.", and "2.5" are all valid; "2.3.4" is not), and may be
+// preceded by a '-' that negates it wherever an operand is expected — so
+// "-7", "-7+3" (continuing from a negative result), and "2*-3" all parse,
+// while a doubled sign ("--3") does not. Only '-' acts as a sign: a leading
+// '+' ("+2") stays malformed, as it always has been. Returns true and writes
+// the value to result on success; returns false on malformed/empty input, an
+// unsupported character, division by zero, or a literal/intermediate/final
+// value that is not finite (e.g. overflows to infinity).
 bool parseEquation(const std::string& equation, double& result);
 
 class CalculatorEngine {
