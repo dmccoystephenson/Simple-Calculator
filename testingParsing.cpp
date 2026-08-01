@@ -59,6 +59,23 @@ static void testParser() {
 	assert(parseEquation("1/4", result) && result == 0.25);         // division can produce a fraction
 	assert(parseEquation("0.1+0.2", result) && nearlyEqual(result, 0.3)); // binary float rounding tolerated
 
+	// a '-' where an operand is expected is a sign, not a subtraction
+	assert(parseEquation("-7", result) && result == -7);           // a bare negative literal
+	// the sign binds to the literal, not to the rest of the expression:
+	// negating the whole thing would give -10 here, not -4
+	assert(parseEquation("-7+3", result) && result == -4);         // continuing from a negative result
+	assert(parseEquation("-7-3", result) && result == -10);        // sign then a real subtraction
+	assert(parseEquation("2*-3", result) && result == -6);         // sign after an operator
+	assert(parseEquation("5--3", result) && result == 8);          // subtracting a negative
+	assert(parseEquation("- 7", result) && result == -7);          // whitespace between sign and literal
+	assert(parseEquation("-.5+1", result) && result == 0.5);       // sign on a leading-dot literal
+	assert(parseEquation("-2*3", result) && result == -6);         // a signed literal obeys normal precedence
+	assert(!parseEquation("--3", result));                          // a doubled sign is malformed
+	assert(!parseEquation("-", result));                            // a sign with no literal at all
+	assert(!parseEquation("5*-", result));                          // a dangling sign at the end
+	string hugeNegative = "-" + string(400, '9');
+	assert(!parseEquation(hugeNegative, result));                   // a negated literal that overflows is still rejected
+
 	// malformed decimal literals
 	assert(!parseEquation("2.3.4", result));  // a second '.' within the same number
 	assert(!parseEquation(".", result));      // a lone '.' with no digits at all
@@ -72,7 +89,7 @@ static void testParser() {
 	// malformed input / unsupported characters
 	assert(!parseEquation("", result));      // empty
 	assert(!parseEquation("2+", result));    // trailing operator
-	assert(!parseEquation("+2", result));    // leading operator
+	assert(!parseEquation("+2", result));    // leading '+' is not a sign (unlike '-')
 	assert(!parseEquation("2#3", result));   // unsupported character
 	assert(!parseEquation("2 3", result));   // two operands, no operator
 	assert(!parseEquation("2/", result));    // trailing division operator
@@ -300,6 +317,79 @@ static void testEngineInput() {
 	engine.inputDigit(5);
 	assert(engine.evaluate(result) && result == -2.5);
 	assert(displayString(engine) == "-2.5___");
+
+	// a calculation continues from a negative result: the leading '-' of the
+	// displayed result is re-read as a sign, not as a dangling operator
+	engine.clear();
+	engine.inputDigit(3);
+	engine.inputOperator('-');
+	engine.inputDigit(1);
+	engine.inputDigit(0);
+	assert(engine.evaluate(result) && result == -7);
+	assert(engine.equationText() == "-7");
+	engine.inputOperator('+');
+	engine.inputDigit(3);
+	assert(engine.equationText() == "-7+3");
+	assert(engine.evaluate(result) && result == -4);
+	assert(displayString(engine) == "-4_____");
+
+	// the same works for an operator that isn't '+'
+	engine.clear();
+	engine.inputDigit(3);
+	engine.inputOperator('-');
+	engine.inputDigit(1);
+	engine.inputDigit(0);
+	assert(engine.evaluate(result) && result == -7);
+	engine.inputOperator('*');
+	engine.inputDigit(2);
+	assert(engine.equationText() == "-7*2");
+	assert(engine.evaluate(result) && result == -14);
+
+	// '-' as the very first input enters a negative number directly
+	engine.clear();
+	engine.inputOperator('-');
+	engine.inputDigit(7);
+	assert(engine.equationText() == "-7");
+	assert(displayString(engine) == "-7_____");
+	assert(engine.evaluate(result) && result == -7);
+
+	// a decimal point after a leading sign belongs to the signed literal
+	engine.clear();
+	engine.inputOperator('-');
+	engine.inputDigit(2);
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	assert(engine.equationText() == "-2.5");
+	assert(engine.evaluate(result) && result == -2.5);
+
+	// "5--3" is now valid (subtracting a negative), but only one sign may
+	// follow an operator: a third consecutive '-' has no operand position
+	// left to be a sign in, so it is rejected at evaluate() time
+	engine.clear();
+	engine.inputDigit(5);
+	engine.inputOperator('-');
+	engine.inputOperator('-');
+	engine.inputOperator('-');
+	engine.inputDigit(3);
+	assert(engine.equationText() == "5---3");
+	assert(!engine.evaluate(result));
+
+	// a negative magnitude too small to survive rounding displays as a plain
+	// "0", not a misleading "-0" (the out-param keeps the true value)
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('-');
+	engine.inputDigit(1);
+	engine.inputDecimalPoint();
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(1);
+	assert(engine.equationText() == "1-1.00001");
+	assert(engine.evaluate(result) && nearlyEqual(result, -0.00001));
+	assert(engine.equationText() == "0");
+	assert(displayString(engine) == "0______");
 }
 
 int main() {

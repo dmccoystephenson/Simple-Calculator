@@ -47,7 +47,9 @@ namespace {
 	// decimal point both count against the budget), rounding the fractional
 	// part to whatever precision remains once the integer part and sign are
 	// accounted for; a whole-number result is shown with no decimal point at
-	// all. Returns false if even the rounded integer part does not fit.
+	// all, and a negative magnitude small enough to round away entirely is
+	// shown as a plain "0" rather than "-0". Returns false if even the rounded
+	// integer part does not fit.
 	bool formatForDisplay(double value, int slotCount, string& out) {
 		if (!isfinite(value)) return false;
 
@@ -95,7 +97,9 @@ namespace {
 		}
 		if ((int)text.size() > budget) return false; // rounding still doesn't fit
 
-		out = negative ? ("-" + text) : text;
+		// a magnitude small enough to round away entirely displays as a plain
+		// "0" — keeping the sign here would render a misleading "-0"
+		out = (negative && text != "0") ? ("-" + text) : text;
 		return true;
 	}
 }
@@ -107,9 +111,22 @@ bool parseEquation(const string& equation, double& result) {
 	int i = 0;
 	int n = (int)equation.length();
 	bool expectOperand = true; // operand and operator must alternate
+	bool negatePending = false; // a unary '-' waiting for the literal it negates
 	while (i < n) {
 		char c = equation[i];
 		if (isspace((unsigned char)c)) { i++; continue; }
+		// a '-' where an operand is expected is a sign, not a subtraction: it
+		// negates the literal that follows. This is what lets a calculation
+		// continue from a negative result ("-7+3") and lets a negative number
+		// be entered at all ("-7"). Only one sign is allowed per operand
+		// position: a second consecutive one ("--3") falls through to the
+		// operator branch below and is rejected as malformed, the same way any
+		// other doubled operator ("5+*3") is.
+		if (c == '-' && expectOperand && !negatePending) {
+			negatePending = true;
+			i++;
+			continue;
+		}
 		if (isdigit((unsigned char)c) || c == '.') {
 			// a number literal: digits with at most one decimal point
 			// ("2", ".5", "2.", and "2.5" are all valid)
@@ -136,6 +153,10 @@ bool parseEquation(const string& equation, double& result) {
 			}
 			if (!sawDigit) return false; // a lone '.' with no digits at all
 			double value = intPart + fracPart;
+			if (negatePending) {
+				value = -value;
+				negatePending = false;
+			}
 			if (!isfinite(value)) return false; // literal too large to represent
 			output.push({true, value, 0});
 			expectOperand = false;
@@ -155,6 +176,8 @@ bool parseEquation(const string& equation, double& result) {
 		}
 		return false; // unsupported character
 	}
+	// a dangling sign ("5*-") also leaves expectOperand set, since the literal
+	// it was waiting for never arrived
 	if (expectOperand) return false; // empty input or trailing operator
 	while (!operators.empty()) {
 		output.push({false, 0, operators.back()});
