@@ -144,6 +144,29 @@ static void testEngineInput() {
 	engine.inputOperator('%'); // ignored (modulo is not supported)
 	assert(engine.equationText() == "");
 
+	// unlike inputDecimalPoint(), inputOperator() does not look at what
+	// precedes it: an operator typed as the very first input (no operand
+	// yet) is still appended to the equation/display, and only rejected
+	// later at evaluate() time, same as parseEquation("+2") is
+	engine.clear();
+	engine.inputOperator('+');
+	assert(engine.equationText() == "+");
+	assert(displayString(engine) == "+______");
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "+");
+
+	// likewise, two operators typed back to back are both appended (each is
+	// individually valid to inputOperator) and only rejected together at
+	// evaluate() time, same as parseEquation("5+*3") is
+	engine.clear();
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	engine.inputOperator('*');
+	engine.inputDigit(3);
+	assert(engine.equationText() == "5+*3");
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "5+*3");
+
 	// clear resets everything
 	engine.inputDigit(9);
 	engine.clear();
