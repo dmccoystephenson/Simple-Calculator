@@ -390,6 +390,47 @@ static void testEngineInput() {
 	assert(engine.evaluate(result) && nearlyEqual(result, -0.00001));
 	assert(engine.equationText() == "0");
 	assert(displayString(engine) == "0______");
+
+	// a non-terminating fraction is rounded to fill the display's whole
+	// fractional-digit budget, not truncated to a fixed few digits
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(3);
+	assert(engine.evaluate(result) && nearlyEqual(result, 1.0 / 3.0));
+	assert(engine.equationText() == "0.33333");
+	assert(displayString(engine) == "0.33333");
+
+	// rounding that carries into an extra integer digit is handled by
+	// formatForDisplay's retry loop (see its comment on "9.996" -> "10.0"):
+	// the initial 5-decimal attempt rounds up to "10.00000" (8 chars, over
+	// budget), the loop retries at 4 decimals ("10.0000", fits), then the
+	// all-zero fraction is stripped down to a bare "10"
+	engine.clear();
+	engine.inputDigit(9);
+	engine.inputDecimalPoint();
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputDigit(9);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "9.999999+0");
+	assert(engine.evaluate(result) && nearlyEqual(result, 9.999999));
+	assert(engine.equationText() == "10");
+	assert(displayString(engine) == "10_____");
+
+	// the display slots saturate once full while the equation keeps
+	// growing: typing nine digits in a row leaves a full equationText()
+	// but the final slot is repeatedly overwritten rather than scrolling
+	engine.clear();
+	for (int d = 1; d <= 9; d++) {
+		engine.inputDigit(d);
+	}
+	assert(engine.equationText() == "123456789");
+	assert(displayString(engine) == "1234569");
 }
 
 int main() {
