@@ -135,7 +135,11 @@ overflow to infinity is rejected as malformed rather than silently producing
 `inf`.
 
 The display has 7 fixed slots (the GUI and text frontend both render from the
-same underlying state, so they always agree on what a result looks like). A
+same underlying state, so they always agree on what a result looks like). They
+show a window onto the *end* of the equation being built: an equation longer
+than 7 characters scrolls, so the characters most recently entered are always
+the ones on screen and what is displayed is always a truthful suffix of what
+will be evaluated. A
 result is rounded to fit: the integer part is always shown in full (rejecting
 the result if it alone is wider than 7 characters, e.g. `50000000+49999999`),
 and whatever slots remain are used for a decimal point and as many fractional

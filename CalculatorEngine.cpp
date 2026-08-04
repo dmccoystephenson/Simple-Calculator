@@ -213,27 +213,31 @@ CalculatorEngine::CalculatorEngine() {
 	clear();
 }
 
-// Appends a character to the equation and shows it in the next display slot.
-// The slot cursor saturates at the last slot (matching the original GUI, which
-// kept overwriting the final slot once the display was full).
+// Redraws the slots as a window onto the last SLOT_COUNT characters of the
+// equation, left-aligned and padded with empty slots while it is shorter. Once
+// the equation outgrows the display the window scrolls rather than overwriting
+// the final slot, so what is on screen is always a truthful suffix of what will
+// be evaluated (the earlier behavior dropped characters in the middle: "1"-"9"
+// showed "1234569", and continuing from a 7-character result such as "0.33333"
+// showed "0.3333+" for the equation "0.33333+").
+void CalculatorEngine::refreshSlots() {
+	int length = (int)equation.size();
+	int start = (length > SLOT_COUNT) ? (length - SLOT_COUNT) : 0;
+	for (int i = 0; i < SLOT_COUNT; i++) {
+		slots[i] = (start + i < length) ? equation[start + i] : '\0';
+	}
+}
+
+// Appends a character to the equation and redraws the display around it.
 void CalculatorEngine::appendChar(char value) {
 	equation += value;
-	slots[nextSlot] = value;
-	if (nextSlot < SLOT_COUNT - 1) {
-		nextSlot++;
-	}
+	refreshSlots();
 }
 
 // Replaces the equation/display with the given text (used to show a result).
 void CalculatorEngine::setDisplay(const string& text) {
 	equation = text;
-	for (int i = 0; i < SLOT_COUNT; i++) {
-		slots[i] = (i < (int)text.size()) ? text[i] : '\0';
-	}
-	nextSlot = (int)text.size();
-	if (nextSlot > SLOT_COUNT - 1) {
-		nextSlot = SLOT_COUNT - 1;
-	}
+	refreshSlots();
 }
 
 void CalculatorEngine::inputDigit(int digit) {
@@ -268,10 +272,7 @@ void CalculatorEngine::inputDecimalPoint() {
 
 void CalculatorEngine::clear() {
 	equation.clear();
-	for (int i = 0; i < SLOT_COUNT; i++) {
-		slots[i] = '\0';
-	}
-	nextSlot = 0;
+	refreshSlots();
 	justEvaluated = false;
 }
 
