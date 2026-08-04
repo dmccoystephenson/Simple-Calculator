@@ -422,15 +422,47 @@ static void testEngineInput() {
 	assert(engine.equationText() == "10");
 	assert(displayString(engine) == "10_____");
 
-	// the display slots saturate once full while the equation keeps
-	// growing: typing nine digits in a row leaves a full equationText()
-	// but the final slot is repeatedly overwritten rather than scrolling
+	// the display is a window onto the end of the equation: once the equation
+	// outgrows the seven slots the window scrolls, so what is shown stays a
+	// truthful suffix of what will be evaluated (it used to overwrite the
+	// final slot, showing "1234569" here and dropping the 7 and 8 entirely)
 	engine.clear();
 	for (int d = 1; d <= 9; d++) {
 		engine.inputDigit(d);
 	}
 	assert(engine.equationText() == "123456789");
-	assert(displayString(engine) == "1234569");
+	assert(displayString(engine) == "3456789");
+
+	// the window scrolls one character at a time, and an equation of exactly
+	// SLOT_COUNT characters is still shown in full before it starts moving
+	engine.clear();
+	for (int d = 1; d <= 7; d++) {
+		engine.inputDigit(d);
+	}
+	assert(displayString(engine) == "1234567");
+	engine.inputDigit(8);
+	assert(displayString(engine) == "2345678");
+
+	// continuing from a result that already fills the display: the operator no
+	// longer overwrites the result's last digit (which showed "0.3333+" for the
+	// equation "0.33333+", misrepresenting the value being carried forward)
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(3);
+	assert(engine.evaluate(result) && nearlyEqual(result, 1.0 / 3.0));
+	assert(displayString(engine) == "0.33333");
+	engine.inputOperator('+');
+	assert(engine.equationText() == "0.33333+");
+	assert(displayString(engine) == ".33333+");
+	engine.inputDigit(1);
+	assert(engine.equationText() == "0.33333+1");
+	// the carried-forward operand is the displayed (rounded) "0.33333", not the
+	// full 1/3, so the sum is exactly 1.33333
+	assert(engine.evaluate(result) && nearlyEqual(result, 1.33333));
+	// evaluating shrinks the equation back to the result, so the window stops
+	// scrolling and the display is left-aligned again
+	assert(displayString(engine) == "1.33333");
 }
 
 int main() {

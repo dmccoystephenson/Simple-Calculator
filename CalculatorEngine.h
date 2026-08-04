@@ -42,6 +42,9 @@ class CalculatorEngine {
 	                                 // malformed or the result doesn't fit in SLOT_COUNT chars
 
 	// Presentation queries — a frontend reads these to render the display.
+	// The slots are a window onto the *end* of the equation: once the equation
+	// outgrows SLOT_COUNT, the last SLOT_COUNT characters are what shows, so
+	// the characters most recently entered always match what was entered.
 	const std::string& equationText() const; // the full equation built so far
 	int slotCount() const;                    // == SLOT_COUNT
 	char slotChar(int index) const;           // char shown in a slot, or '\0' if empty
@@ -49,10 +52,10 @@ class CalculatorEngine {
   private:
 	void appendChar(char value);
 	void setDisplay(const std::string& text);
+	void refreshSlots();
 
 	std::string equation;
 	char slots[SLOT_COUNT];
-	int nextSlot;
 	bool justEvaluated; // true right after evaluate(): the next digit starts fresh
 };
 
