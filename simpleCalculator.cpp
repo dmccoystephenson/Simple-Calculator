@@ -1,6 +1,7 @@
 // SDL/GUI frontend for the calculator. All calculation and display state lives
 // in the shared CalculatorEngine; this file only renders the engine's display
-// and translates SDL mouse clicks into engine input. See CalculatorEngine.h.
+// and translates SDL mouse clicks and key presses into engine input.
+// See CalculatorEngine.h.
 #include <SDL.h>
 #include <SDL_image.h>
 #include <iostream>
@@ -12,6 +13,7 @@ using namespace std;
 
 // functions
 void changeDisplay(int id); // routes a button id to the calculator engine
+int buttonIdForChar(char value); // maps a typed character to the button id it activates, or -1
 SDL_Texture* textureForChar(char value); // maps a display character to its texture
 void syncDisplay(); // pushes the engine's display state into the slot buttons
 SDL_Texture* loadTexture(const char* path); // loads a PNG into a texture, freeing the intermediate surface
@@ -19,6 +21,7 @@ bool init(); // returns false if SDL/window/renderer setup fails
 bool loadMedia(); // returns false if any texture fails to load
 void close();
 void handleButtonEvents(SDL_Event e);
+void handleKeyboardEvents(SDL_Event e);
 void displayButtonTextures();
 
 // screen dimensions
@@ -166,6 +169,28 @@ void changeDisplay(int id) {
 	}
 }
 
+// Maps a character typed on the keyboard to the id of the button it activates,
+// so a key press is routed through the same changeDisplay() dispatch a click is.
+// Returns -1 for a character no button is bound to. The ids are read off the
+// buttons themselves rather than repeated as literals, so init() stays the one
+// place an id is chosen.
+int buttonIdForChar(char value) {
+	if (value >= '0' && value <= '9') {
+		return digitButtons[value - '0'].id;
+	}
+	switch (value) {
+		case '-': return minusSign.id;
+		case '+': return plusSign.id;
+		case '*': return multiply.id;
+		case '/': return divide.id;
+		case '.': return decimalPoint.id;
+		case '=': return equalsSign.id;
+		case 'c':
+		case 'C': return clear.id;
+		default:  return -1; // no button is bound to this character
+	}
+}
+
 // Maps a display character produced by the engine to the texture that draws it.
 SDL_Texture* textureForChar(char value) {
 	if (value >= '0' && value <= '9') {
@@ -218,6 +243,10 @@ bool init() {
 		cerr << "IMG_Init failed: " << IMG_GetError() << endl;
 		return false;
 	}
+
+	// ask for SDL_TEXTINPUT events, which handleKeyboardEvents() reads the typed
+	// character from (SDL enables these by default; asking is explicit, not a change)
+	SDL_StartTextInput();
 
 	// set middle button x and y
 	int middleX = SCREEN_WIDTH/2 - 50;
@@ -351,6 +380,9 @@ void close() {
 	SDL_DestroyTexture(equalsT);
 	SDL_DestroyTexture(decimalT);
 
+	// stop the text input requested in init()
+	SDL_StopTextInput();
+
 	// destroy renderer and window (renderer first, per SDL convention)
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
@@ -363,6 +395,40 @@ void close() {
 void handleButtonEvents(SDL_Event e) {
 	for (Button* button : clickableButtons) {
 		button->handleEvent(&e);
+	}
+}
+
+// Drives the calculator from the keyboard, using the same button dispatch a
+// click uses. Characters arrive as SDL_TEXTINPUT rather than SDL_KEYDOWN
+// because a key press only reports which key was pressed: on a US layout '+'
+// and '*' are shifted keys, so SDL_KEYDOWN reports them as '=' and '8'.
+// SDL_TEXTINPUT reports the character the layout and modifiers actually
+// produced, which is what the calculator binds. SDL_KEYDOWN still covers the
+// keys that produce no character of their own (Enter, Escape, Delete).
+void handleKeyboardEvents(SDL_Event e) {
+	if (e.type == SDL_TEXTINPUT) {
+		// the text is UTF-8; every character bound to a button is a single ASCII byte
+		if (e.text.text[0] != '\0' && e.text.text[1] == '\0') {
+			int id = buttonIdForChar(e.text.text[0]);
+			if (id != -1) {
+				changeDisplay(id);
+			}
+		}
+	}
+	else if (e.type == SDL_KEYDOWN) {
+		switch (e.key.keysym.sym) {
+			case SDLK_RETURN:
+			case SDLK_RETURN2:
+			case SDLK_KP_ENTER:
+				changeDisplay(equalsSign.id);
+				break;
+			case SDLK_ESCAPE:
+			case SDLK_DELETE:
+				changeDisplay(clear.id);
+				break;
+			default:
+				break; // every other key is either text (handled above) or unbound
+		}
 	}
 }
 
@@ -404,6 +470,7 @@ int main(int, char*[]) {
 			}
 
 			handleButtonEvents(e);
+			handleKeyboardEvents(e);
 		}
 
 		// fill the surface with the background color

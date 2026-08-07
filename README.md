@@ -13,7 +13,7 @@ The code is split into a shared engine and thin frontends:
 | File | Role |
 | --- | --- |
 | `CalculatorEngine.h` / `.cpp` | UI-agnostic core — input state, the 7-slot display model, and evaluation via the shunting-yard parser. Knows nothing about SDL or a terminal. |
-| `simpleCalculator.cpp` | SDL/GUI frontend — renders the engine's display as textures and turns mouse clicks into engine input. |
+| `simpleCalculator.cpp` | SDL/GUI frontend — renders the engine's display as textures and turns mouse clicks and key presses into engine input. |
 | `textCalculator.cpp` | Text/CLI frontend — renders the display as text and turns typed characters into engine input. |
 | `testingParsing.cpp` | Assert-based test suite for the engine + parser (no SDL). |
 
@@ -92,6 +92,21 @@ The button textures are PNG files (`one.png`, `plus.png`, `divide.png`, …) loa
 with relative paths via `IMG_Load`, so **run the program from the repository
 directory** where those assets live. Running it from elsewhere will fail to load
 the textures.
+
+The on-screen buttons can be clicked, or the keyboard can be used instead — both
+go through the same dispatch, so they are interchangeable:
+
+| Key | Effect |
+| --- | --- |
+| `0`–`9` (number row or keypad) | enter a digit |
+| `+`, `-`, `*`, `/` (number row or keypad) | enter an operator |
+| `.` | enter a decimal point |
+| `=`, `Enter` (Return or keypad) | evaluate |
+| `c`, `Escape`, `Delete` | clear |
+
+Any other key is ignored. There is no key that deletes a single character —
+`c`/`Escape`/`Delete` clear the whole equation, matching the on-screen `clear`
+button, which is the only erase the engine offers.
 
 The text/CLI frontend runs in a terminal — type digits and `+ - * /`, then `=`
 to evaluate, `c` to clear, `q` to quit:
