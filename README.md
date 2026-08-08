@@ -93,8 +93,9 @@ with relative paths via `IMG_Load`, so **run the program from the repository
 directory** where those assets live. Running it from elsewhere will fail to load
 the textures.
 
-The on-screen buttons can be clicked, or the keyboard can be used instead — both
-go through the same dispatch, so they are interchangeable:
+The on-screen buttons can be left-clicked (a right- or middle-click is ignored),
+or the keyboard can be used instead — both go through the same dispatch, so they
+are interchangeable:
 
 | Key | Effect |
 | --- | --- |

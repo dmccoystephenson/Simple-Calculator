@@ -74,24 +74,30 @@ class Button {
 	}
 
 	void handleEvent(SDL_Event* e) {
-		// only a mouse-button press does anything
-		if (e->type == SDL_MOUSEBUTTONDOWN) {
+		// only a press of the left mouse button does anything: a right-click is
+		// a context-menu gesture and a middle-click a paste/scroll one, so
+		// neither is expected to press an on-screen button
+		if (e->type == SDL_MOUSEBUTTONDOWN && e->button.button == SDL_BUTTON_LEFT) {
 			// the click event already carries the mouse position
 			int x = e->button.x;
 			int y = e->button.y;
 
-			// check if the click landed inside the button
+			// check if the click landed inside the button. The far edges are
+			// exclusive because displayTexture() draws {xpos, ypos, width,
+			// height}, which covers xpos..xpos+width-1 — an inclusive test
+			// would make the clickable area a pixel wider and taller than the
+			// button actually drawn.
 			bool inside = true;
 			if (x < xpos) {
 				inside = false;
 			}
-			else if (x > xpos + width) {
+			else if (x >= xpos + width) {
 				inside = false;
 			}
 			else if (y < ypos) {
 				inside = false;
 			}
-			else if (y > ypos + height) {
+			else if (y >= ypos + height) {
 				inside = false;
 			}
 
