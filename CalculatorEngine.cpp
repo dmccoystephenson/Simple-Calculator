@@ -47,14 +47,21 @@ namespace {
 	// decimal point both count against the budget), rounding the fractional
 	// part to whatever precision remains once the integer part and sign are
 	// accounted for; a whole-number result is shown with no decimal point at
-	// all, and a negative magnitude small enough to round away entirely is
-	// shown as a plain "0" rather than "-0". Returns false if even the rounded
-	// integer part does not fit.
+	// all, and a value with no magnitude left to sign — negative zero itself,
+	// or a negative magnitude small enough to round away entirely — is shown as
+	// a plain "0" rather than "-0". Returns false if even the rounded integer
+	// part does not fit.
 	bool formatForDisplay(double value, int slotCount, string& out) {
 		if (!isfinite(value)) return false;
 
 		bool negative = value < 0;
-		double magnitude = negative ? -value : value;
+		// fabs() rather than the negative flag: IEEE negative zero (produced by
+		// "-0", "0*-3", "0/-5", …) is not < 0, so the flag is false for it while
+		// the value still carries a sign bit that snprintf would render ("%.5f"
+		// of -0.0 is "-0.00000"). Taking the absolute value unconditionally
+		// keeps the sign out of the formatted text entirely, leaving the guard
+		// at the end of this function as the only place one is ever added.
+		double magnitude = fabs(value);
 		// nothing that wide could ever fit in slotCount<=7 anyway; bailing out
 		// here keeps the long long casts below well within range
 		if (magnitude >= 1e15) return false;
@@ -97,8 +104,10 @@ namespace {
 		}
 		if ((int)text.size() > budget) return false; // rounding still doesn't fit
 
-		// a magnitude small enough to round away entirely displays as a plain
-		// "0" — keeping the sign here would render a misleading "-0"
+		// the only place a sign is ever added: text is formatted from fabs(value)
+		// above, so it never carries one of its own. A magnitude that rounds away
+		// entirely displays as a plain "0" — keeping the sign here would render a
+		// misleading "-0"
 		out = (negative && text != "0") ? ("-" + text) : text;
 		return true;
 	}
