@@ -391,6 +391,39 @@ static void testEngineInput() {
 	assert(engine.equationText() == "0");
 	assert(displayString(engine) == "0______");
 
+	// a result that is IEEE negative zero displays as a plain "0" too. It is
+	// not caught by the rounding case above: -0.0 is not < 0, so the sign is
+	// carried by the value's sign bit rather than by its magnitude, and it
+	// used to reach the display via snprintf ("%.5f" of -0.0 is "-0.00000",
+	// which the retry loop and trailing-zero strip reduced to "-0")
+	engine.clear();
+	engine.inputOperator('-');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "-0");
+	assert(engine.evaluate(result) && result == 0);
+	assert(engine.equationText() == "0");
+	assert(displayString(engine) == "0______");
+
+	// negative zero is equally reachable as the product or quotient of zero and
+	// a negative operand, not just as a signed zero literal
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('*');
+	engine.inputOperator('-');
+	engine.inputDigit(3);
+	assert(engine.equationText() == "0*-3");
+	assert(engine.evaluate(result) && result == 0);
+	assert(engine.equationText() == "0");
+
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('/');
+	engine.inputOperator('-');
+	engine.inputDigit(5);
+	assert(engine.equationText() == "0/-5");
+	assert(engine.evaluate(result) && result == 0);
+	assert(engine.equationText() == "0");
+
 	// a non-terminating fraction is rounded to fill the display's whole
 	// fractional-digit budget, not truncated to a fixed few digits
 	engine.clear();

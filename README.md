@@ -163,8 +163,10 @@ digits as fit — so `1/4` displays as `0.25`, but a result with a longer,
 non-terminating fraction is rounded, not shown truncated after however many
 digits happen to fit. A result that is a whole number once rounded (e.g. `4/2`
 or a fraction that rounds away entirely) is shown with no decimal point, the
-same way integer division always displayed results. A negative result too small
-to survive that rounding displays as a plain `0` rather than a misleading `-0`.
+same way integer division always displayed results. A result with no magnitude
+left to sign displays as a plain `0` rather than a misleading `-0` — that covers
+both a negative value too small to survive the rounding and a negative zero
+entered or produced directly (`-0`, `0*-3`, `0/-5`).
 
 See the [issue tracker](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/issues)
 for known limitations and planned work.
