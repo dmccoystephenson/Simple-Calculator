@@ -1,6 +1,6 @@
 # Simple Calculator GUI (SDL)
 
-[![CI](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/actions/workflows/ci.yml/badge.svg)](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/actions/workflows/ci.yml)
+[![CI](https://github.com/dmccoystephenson/Simple-Calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/dmccoystephenson/Simple-Calculator/actions/workflows/ci.yml)
 
 A small calculator in C++. The calculation logic lives in a UI-agnostic core
 (`CalculatorEngine`) that every frontend shares, so the same engine drives both
@@ -168,5 +168,5 @@ left to sign displays as a plain `0` rather than a misleading `-0` — that cove
 both a negative value too small to survive the rounding and a negative zero
 entered or produced directly (`-0`, `0*-3`, `0/-5`).
 
-See the [issue tracker](https://github.com/dmccoystephenson/Simple-Calculator-GUI-Using-SDL/issues)
+See the [issue tracker](../../issues)
 for known limitations and planned work.
