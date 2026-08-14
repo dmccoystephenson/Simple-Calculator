@@ -95,6 +95,13 @@ static void testParser() {
 	assert(!parseEquation("2/", result));    // trailing division operator
 	assert(!parseEquation("4/0", result));   // division by zero is rejected
 	assert(!parseEquation("1+4/0", result)); // division by zero anywhere fails the whole equation
+	assert(!parseEquation("0/0", result));   // a zero numerator does not excuse a zero divisor
+
+	// whitespace is skipped wherever it appears, so an equation made of
+	// nothing but whitespace is the empty-input case rather than a
+	// zero-length-token one
+	assert(!parseEquation("   ", result));
+	assert(!parseEquation("\t", result));
 }
 
 static void testEngineInput() {
@@ -119,6 +126,16 @@ static void testEngineInput() {
 	assert(engine.equationText() == "12+3");
 	assert(displayString(engine) == "12+3___");
 
+	// the display queries a frontend renders from are bounded: slotCount() is
+	// the SLOT_COUNT the frontends size their slot arrays from, an unfilled
+	// slot reads as '\0', and an index outside the range reads as '\0' too
+	// rather than off the end of the slots array
+	assert(engine.slotCount() == CalculatorEngine::SLOT_COUNT);
+	assert(engine.slotChar(0) == '1');
+	assert(engine.slotChar(engine.slotCount() - 1) == '\0'); // past the equation, still in range
+	assert(engine.slotChar(-1) == '\0');
+	assert(engine.slotChar(engine.slotCount()) == '\0');
+
 	// evaluating shows the result on the display
 	assert(engine.evaluate(result) && result == 15);
 	assert(engine.equationText() == "15");
@@ -136,6 +153,33 @@ static void testEngineInput() {
 	engine.inputDigit(4);
 	assert(engine.equationText() == "5+4");
 	assert(engine.evaluate(result) && result == 9);
+
+	// evaluating twice in a row re-evaluates whatever the display now holds
+	// rather than repeating the last operation the way some calculators do:
+	// "12+3" becomes "15", and evaluating "15" is simply 15 again
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputDigit(2);
+	engine.inputOperator('+');
+	engine.inputDigit(3);
+	assert(engine.evaluate(result) && result == 15);
+	assert(engine.evaluate(result) && result == 15);
+	assert(engine.equationText() == "15");
+	assert(displayString(engine) == "15_____");
+
+	// re-evaluating a result that had to be rounded to fit carries that
+	// rounding into the value reported: the first evaluate() returns the true
+	// 1/3 while displaying "0.33333", and the second parses that display back,
+	// so the out-param becomes the rounded value the user can actually see
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(3);
+	assert(engine.evaluate(result) && nearlyEqual(result, 1.0 / 3.0));
+	assert(engine.equationText() == "0.33333");
+	assert(engine.evaluate(result) && nearlyEqual(result, 0.33333));
+	assert(!nearlyEqual(result, 1.0 / 3.0));
+	assert(engine.equationText() == "0.33333");
 
 	// division is accepted like any other operator
 	engine.clear();
@@ -158,6 +202,7 @@ static void testEngineInput() {
 	// out-of-range / unsupported input is ignored
 	engine.clear();
 	engine.inputDigit(42);     // ignored
+	engine.inputDigit(-1);     // ignored below the 0-9 range, not just above it
 	engine.inputOperator('%'); // ignored (modulo is not supported)
 	assert(engine.equationText() == "");
 
@@ -195,6 +240,48 @@ static void testEngineInput() {
 	engine.inputOperator('+');
 	assert(!engine.evaluate(result));
 	assert(engine.equationText() == "2+");
+
+	// a failed evaluate() leaves the *input* state alone as well as the
+	// display: the next digit continues the equation being typed instead of
+	// starting a fresh one the way a digit after a successful evaluate() does
+	engine.clear();
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	assert(!engine.evaluate(result));
+	engine.inputDigit(3);
+	assert(engine.equationText() == "5+3");
+	assert(engine.evaluate(result) && result == 8);
+
+	// the same holds when the failure follows a success: the operator cleared
+	// the just-evaluated state, and the failed evaluate() did not restore it
+	engine.clear();
+	engine.inputDigit(8);
+	assert(engine.evaluate(result) && result == 8);
+	engine.inputOperator('+');
+	assert(!engine.evaluate(result)); // "8+" is a trailing operator
+	engine.inputDigit(1);
+	assert(engine.equationText() == "8+1");
+
+	// a decimal point behaves the same way after a failure — it opens the
+	// number after the trailing operator rather than starting over
+	engine.clear();
+	engine.inputDigit(2);
+	engine.inputOperator('+');
+	assert(!engine.evaluate(result));
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	assert(engine.equationText() == "2+.5");
+	assert(engine.evaluate(result) && result == 2.5);
+
+	// a failed evaluate() does not write to the out-param either, so a caller
+	// that reuses one variable across evaluations (as both frontends do) keeps
+	// whatever it held before
+	engine.clear();
+	engine.inputDigit(2);
+	engine.inputOperator('+');
+	double untouched = 12345;
+	assert(!engine.evaluate(untouched));
+	assert(untouched == 12345);
 
 	// a result that exactly fills the 7-slot display still shows in full
 	engine.clear();
@@ -286,6 +373,35 @@ static void testEngineInput() {
 	engine.inputDigit(4);
 	assert(engine.evaluate(result) && result == 0.25);
 	assert(displayString(engine) == "0.25___");
+
+	// continuing from a fractional result: the '.' already on the display
+	// belongs to the carried-forward number, so the number started after the
+	// new operator may still take one of its own (inputDecimalPoint only
+	// inspects what follows the last operator)
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(4);
+	assert(engine.evaluate(result) && result == 0.25);
+	engine.inputOperator('+');
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	assert(engine.equationText() == "0.25+.5");
+	assert(engine.evaluate(result) && result == 0.75);
+
+	// a *second* '.' in that new number is still rejected, so the scoping does
+	// not simply stop rejecting once an earlier number contained a '.'
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(4);
+	assert(engine.evaluate(result) && result == 0.25);
+	engine.inputOperator('+');
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	engine.inputDecimalPoint(); // ignored: ".5" already has a '.'
+	engine.inputDigit(1);
+	assert(engine.equationText() == "0.25+.51");
 
 	// a '.' typed right after a result starts a brand-new calculation, just
 	// like a digit does
@@ -390,6 +506,25 @@ static void testEngineInput() {
 	assert(engine.evaluate(result) && nearlyEqual(result, -0.00001));
 	assert(engine.equationText() == "0");
 	assert(displayString(engine) == "0______");
+
+	// the same magnitude with the opposite sign survives, because the sign is
+	// what costs the slot the fifth decimal needed: "0.00001" fills all seven
+	// slots, where the negative case above had only six to spend and rounded
+	// away entirely
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputDecimalPoint();
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(0);
+	engine.inputDigit(1);
+	engine.inputOperator('-');
+	engine.inputDigit(1);
+	assert(engine.equationText() == "1.00001-1");
+	assert(engine.evaluate(result) && nearlyEqual(result, 0.00001));
+	assert(engine.equationText() == "0.00001");
+	assert(displayString(engine) == "0.00001");
 
 	// a result that is IEEE negative zero displays as a plain "0" too. It is
 	// not caught by the rounding case above: -0.0 is not < 0, so the sign is
