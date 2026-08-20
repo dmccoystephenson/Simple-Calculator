@@ -1,6 +1,16 @@
 // Assert-based test suite for the shared CalculatorEngine core (parser +
 // input/display state machine). Builds without SDL and runs in CI; a failing
 // assertion aborts with a non-zero status and fails the job.
+
+// Every check here is a bare assert(), and the engine calls under test sit
+// inside those asserts. <cassert> compiles assert() to nothing when NDEBUG is
+// defined, which would strip the checks *and* the calls they exercise, leaving
+// a binary that prints "All engine tests passed." without having tested
+// anything. Refuse to build rather than pass vacuously.
+#ifdef NDEBUG
+#error "testingParsing.cpp relies on assert(); building with NDEBUG would make every check a no-op"
+#endif
+
 #include "CalculatorEngine.h"
 
 #include <iostream>
