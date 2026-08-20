@@ -125,6 +125,14 @@ make test       # rebuilds first if sources changed
 ./testingParsing
 ```
 
+Because every check is a bare `assert`, the suite cannot be built with `NDEBUG`
+defined — `assert` would compile to nothing and the binary would report success
+without exercising the engine at all. `testingParsing.cpp` guards against this
+with an `#error`, so a `CXXFLAGS` override that includes `-DNDEBUG` (such as a
+release-style `-O2 -DNDEBUG`) fails the build instead of passing silently. Build
+the other targets with those flags if needed, and leave the test suite's
+assertions enabled.
+
 ## Supported operations
 
 `+`, `-`, `*`, and `/` with standard precedence and left-associativity, on
