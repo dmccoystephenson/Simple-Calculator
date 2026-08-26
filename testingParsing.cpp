@@ -349,7 +349,7 @@ static void testEngineInput() {
 	engine.clear();
 	engine.inputDigit(0);
 	engine.inputOperator('-');
-	for (int d = 0; d < 6; d++) {
+	for (int repeat = 0; repeat < 6; repeat++) {
 		engine.inputDigit(9);
 	}
 	assert(engine.equationText() == "0-999999");
@@ -363,7 +363,7 @@ static void testEngineInput() {
 	engine.clear();
 	engine.inputDigit(0);
 	engine.inputOperator('-');
-	for (int d = 0; d < 7; d++) {
+	for (int repeat = 0; repeat < 7; repeat++) {
 		engine.inputDigit(9);
 	}
 	assert(engine.equationText() == "0-9999999");
@@ -381,7 +381,7 @@ static void testEngineInput() {
 		if (factor > 0) {
 			engine.inputOperator('*');
 		}
-		for (int d = 0; d < 7; d++) {
+		for (int repeat = 0; repeat < 7; repeat++) {
 			engine.inputDigit(9);
 		}
 	}
@@ -689,7 +689,7 @@ static void testEngineInput() {
 	engine.inputOperator('-');
 	engine.inputDigit(9);
 	engine.inputDecimalPoint();
-	for (int d = 0; d < 6; d++) {
+	for (int repeat = 0; repeat < 6; repeat++) {
 		engine.inputDigit(9);
 	}
 	assert(engine.equationText() == "0-9.999999");
