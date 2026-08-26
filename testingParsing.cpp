@@ -80,6 +80,8 @@ static void testParser() {
 	assert(parseEquation("- 7", result) && result == -7);          // whitespace between sign and literal
 	assert(parseEquation("-.5+1", result) && result == 0.5);       // sign on a leading-dot literal
 	assert(parseEquation("-2*3", result) && result == -6);         // a signed literal obeys normal precedence
+	assert(parseEquation("5 - -3", result) && result == 8);        // whitespace between a subtraction and the sign after it
+	assert(parseEquation("2*-.5", result) && result == -1);        // a sign on a leading-dot literal after an operator
 	assert(!parseEquation("--3", result));                          // a doubled sign is malformed
 	assert(!parseEquation("-", result));                            // a sign with no literal at all
 	assert(!parseEquation("5*-", result));                          // a dangling sign at the end
@@ -95,6 +97,10 @@ static void testParser() {
 	string hugeDigits(400, '9');
 	assert(!parseEquation(hugeDigits, result));                       // literal overflows to infinity
 	assert(!parseEquation(hugeDigits + "*" + hugeDigits, result));    // product overflows to infinity
+	// a product that is merely enormous, not infinite, is a parser success:
+	// rejecting a value too large to show is the display layer's job, not the
+	// parser's (see the matching engine-level case in testEngineInput)
+	assert(parseEquation("9999999*9999999*9999999", result) && result > 1e15);
 
 	// malformed input / unsupported characters
 	assert(!parseEquation("", result));      // empty
@@ -337,6 +343,53 @@ static void testEngineInput() {
 	assert(!engine.evaluate(result));
 	assert(engine.equationText() == "50000000+49999999");
 
+	// the negative counterpart of that boundary: the leading '-' costs one of
+	// the seven slots, so the widest negative result that still fits has a
+	// six-digit magnitude and fills the display exactly
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	for (int d = 0; d < 6; d++) {
+		engine.inputDigit(9);
+	}
+	assert(engine.equationText() == "0-999999");
+	assert(engine.evaluate(result) && result == -999999);
+	assert(engine.equationText() == "-999999");
+	assert(displayString(engine) == "-999999");
+
+	// one more digit of magnitude no longer fits — "-9999999" would need eight
+	// slots — so it is rejected the same way the positive eight-digit result
+	// is, and the display keeps showing the window onto the untouched equation
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	for (int d = 0; d < 7; d++) {
+		engine.inputDigit(9);
+	}
+	assert(engine.equationText() == "0-9999999");
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "0-9999999");
+	assert(displayString(engine) == "9999999"); // the last seven characters of "0-9999999"
+
+	// a result can also be too large to show without having any digit count to
+	// count: formatForDisplay bails out on a magnitude of 1e15 or more before
+	// it casts to long long. The parser accepts this equation (the product is
+	// finite, so the overflow rejection above does not apply), and it is
+	// evaluate() that refuses to display the value
+	engine.clear();
+	for (int factor = 0; factor < 3; factor++) {
+		if (factor > 0) {
+			engine.inputOperator('*');
+		}
+		for (int d = 0; d < 7; d++) {
+			engine.inputDigit(9);
+		}
+	}
+	assert(engine.equationText() == "9999999*9999999*9999999");
+	assert(parseEquation(engine.equationText(), result) && result > 1e15);
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "9999999*9999999*9999999");
+
 	// a decimal point as the very first input on a fresh equation (not mid-number,
 	// not right after a result) starts a leading-dot literal, same as ".5+1" at
 	// the parser level
@@ -488,6 +541,32 @@ static void testEngineInput() {
 	assert(engine.equationText() == "-2.5");
 	assert(engine.evaluate(result) && result == -2.5);
 
+	// inputDecimalPoint() scopes "the number being typed" to whatever follows
+	// the last '+-*/' in the equation, and a '-' entered as a sign is one of
+	// those characters: after "2*-" the current number reads as empty, so a '.'
+	// is allowed and opens a signed leading-dot literal
+	engine.clear();
+	engine.inputDigit(2);
+	engine.inputOperator('*');
+	engine.inputOperator('-');
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	assert(engine.equationText() == "2*-.5");
+	assert(displayString(engine) == "2*-.5__");
+	assert(engine.evaluate(result) && result == -1);
+
+	// the scoping still rejects a *second* '.' in that signed literal, so
+	// reading the sign as an operator does not reopen the number each time
+	engine.clear();
+	engine.inputDigit(2);
+	engine.inputOperator('*');
+	engine.inputOperator('-');
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	engine.inputDecimalPoint(); // ignored: ".5" after the sign already has a '.'
+	engine.inputDigit(1);
+	assert(engine.equationText() == "2*-.51");
+
 	// "5--3" is now valid (subtracting a negative), but only one sign may
 	// follow an operator: a third consecutive '-' has no operand position
 	// left to be a sign in, so it is rejected at evaluate() time
@@ -599,6 +678,24 @@ static void testEngineInput() {
 	assert(engine.evaluate(result) && nearlyEqual(result, 9.999999));
 	assert(engine.equationText() == "10");
 	assert(displayString(engine) == "10_____");
+
+	// the same carry with a sign in play, where the budget is one slot tighter:
+	// six slots remain after the '-', so the first attempt uses four decimals,
+	// "%.4f" of 9.999999 rounds up to "10.0000" (seven chars, over budget), the
+	// retry drops to three, and the all-zero fraction is stripped to a bare
+	// "10" — a value just under ten displays as "-10", not "-9.9999"
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	engine.inputDigit(9);
+	engine.inputDecimalPoint();
+	for (int d = 0; d < 6; d++) {
+		engine.inputDigit(9);
+	}
+	assert(engine.equationText() == "0-9.999999");
+	assert(engine.evaluate(result) && nearlyEqual(result, -9.999999));
+	assert(engine.equationText() == "-10");
+	assert(displayString(engine) == "-10____");
 
 	// the display is a window onto the end of the equation: once the equation
 	// outgrows the seven slots the window scrolls, so what is shown stays a
