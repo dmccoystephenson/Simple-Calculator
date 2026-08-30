@@ -16,6 +16,7 @@ The code is split into a shared engine and thin frontends:
 | `simpleCalculator.cpp` | SDL/GUI frontend — renders the engine's display as textures and turns mouse clicks and key presses into engine input. |
 | `textCalculator.cpp` | Text/CLI frontend — renders the display as text and turns typed characters into engine input. |
 | `testingParsing.cpp` | Assert-based test suite for the engine + parser (no SDL). |
+| `testingFrontend.cpp` | Assert-based test suite for the SDL frontend's event translation and display rendering. Runs headlessly (SDL's dummy video driver), so it needs SDL2 but no display. |
 
 A frontend contains no calculation logic of its own; it only translates its
 input events into `CalculatorEngine` calls and renders the display the engine
@@ -39,8 +40,8 @@ sudo apt install g++ libsdl2-dev libsdl2-image-dev
 With the provided `Makefile`:
 
 ```sh
-make            # builds simpleCalculator, textCalculator, and testingParsing
-make test       # builds (if needed) and runs the engine + parser test suite
+make            # builds simpleCalculator, textCalculator, testingParsing, and testingFrontend
+make test       # builds (if needed) and runs both test suites
 make clean      # removes built binaries
 ```
 
@@ -55,7 +56,16 @@ g++ -std=c++17 textCalculator.cpp CalculatorEngine.cpp -o textCalculator
 
 # Engine + parser test suite (no SDL dependency)
 g++ -std=c++17 testingParsing.cpp CalculatorEngine.cpp -o testingParsing
+
+# SDL frontend test suite (needs SDL2 + SDL2_image, but no display)
+g++ -std=c++17 testingFrontend.cpp CalculatorEngine.cpp -o testingFrontend $(pkg-config --cflags --libs sdl2 SDL2_image)
 ```
+
+`testingFrontend.cpp` includes `simpleCalculator.cpp` directly rather than
+linking it, because the GUI frontend is a single translation unit with no header
+of its own; the suite renames its `main` out of the way and calls the frontend's
+functions in place. That is why `simpleCalculator.cpp` is absent from the
+compile line above.
 
 ### Windows (one-shot)
 
@@ -109,29 +119,40 @@ Any other key is ignored. There is no key that deletes a single character —
 `c`/`Escape`/`Delete` clear the whole equation, matching the on-screen `clear`
 button, which is the only erase the engine offers.
 
-The text/CLI frontend runs in a terminal — type digits and `+ - * /`, then `=`
-to evaluate, `c` to clear, `q` to quit:
+The text/CLI frontend runs in a terminal — type digits, `.`, and `+ - * /`, then
+`=` to evaluate, `c` to clear, `q` to quit:
 
 ```sh
 ./textCalculator
 ```
 
-The test suite runs the engine + parser assertions and prints a summary. A
-failing assertion aborts with a non-zero status, so it works as a check in
-scripts and CI:
+## Tests
+
+There are two assert-based suites, each printing a summary on success. A failing
+assertion aborts with a non-zero status, so both work as checks in scripts and
+CI, and `make test` runs them in order:
 
 ```sh
 make test       # rebuilds first if sources changed
-./testingParsing
+./testingParsing    # the shared engine: parser, input state, display formatting
+./testingFrontend   # the SDL frontend: event translation and display rendering
 ```
 
-Because every check is a bare `assert`, the suite cannot be built with `NDEBUG`
-defined — `assert` would compile to nothing and the binary would report success
-without exercising the engine at all. `testingParsing.cpp` guards against this
-with an `#error`, so a `CXXFLAGS` override that includes `-DNDEBUG` (such as a
+`testingFrontend` covers the part of the GUI that is logic rather than pixels —
+which SDL event maps to which button id, which id maps to which engine call,
+where a click counts as landing on a button, and which texture ends up in each
+display slot. It selects SDL's dummy video driver and software renderer itself,
+so it needs SDL2 but never a window, a GPU, or a display server. It does load
+the real PNG assets, which is what makes a missing or renamed one a test
+failure, so — like the GUI itself — **run it from the repository directory**.
+
+Because every check in both suites is a bare `assert`, neither can be built with
+`NDEBUG` defined — `assert` would compile to nothing and the binary would report
+success without exercising anything. Both files guard against this with an
+`#error`, so a `CXXFLAGS` override that includes `-DNDEBUG` (such as a
 release-style `-O2 -DNDEBUG`) fails the build instead of passing silently. Build
-the other targets with those flags if needed, and leave the test suite's
-assertions enabled.
+the other targets with those flags if needed, and leave the suites' assertions
+enabled.
 
 ## Supported operations
 
