@@ -30,6 +30,13 @@
 #error "testingFrontend.cpp relies on assert(); building with NDEBUG would make every check a no-op"
 #endif
 
+// On platforms where SDL supplies its own entry point (Windows/MinGW, which
+// build-and-run.bat targets), SDL.h defines main to SDL_main. That would
+// collide with the rename below and leave this file's own main unwrapped, so
+// the wrapper is declined outright — SDL_SetMainReady() in main() is the other
+// half of doing that, and is what SDL.h's wrapper would otherwise have called.
+// On Linux, where SDL needs no wrapper, both are already no-ops.
+#define SDL_MAIN_HANDLED
 #include <SDL.h>
 #include <cassert>
 #include <cstdlib>
@@ -406,6 +413,10 @@ static void testClickDispatch() {
 	assert(engine.equationText() == "");
 
 	// and only the press, not the release, so a click enters one character
+	// rather than two. Motion over a button is likewise inert, which matters
+	// because SDL delivers those continuously while the pointer crosses the
+	// window (the event is built through the button member either way; the
+	// dispatch rejects it on its type before reading anything else).
 	handleButtonEvents(mouseEvent(SDL_MOUSEBUTTONUP, SDL_BUTTON_LEFT,
 	                              b.xpos + 5, b.ypos + 5));
 	handleButtonEvents(mouseEvent(SDL_MOUSEMOTION, SDL_BUTTON_LEFT,
@@ -488,6 +499,10 @@ static void testDisplayRendering() {
 }
 
 int main() {
+	// The other half of SDL_MAIN_HANDLED above: tell SDL its entry-point wrapper
+	// was deliberately skipped, so SDL_Init() does not refuse to start.
+	SDL_SetMainReady();
+
 	// Select the headless drivers before init(). Setting them in-process rather
 	// than expecting them in the environment keeps the suite runnable by a bare
 	// `./testingFrontend` and independent of whether a display server exists.
