@@ -17,11 +17,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsdl2-dev libsdl2-image-dev
 
-      # Builds all three frontends/targets via the Makefile (SDL GUI, text CLI,
-      # and the test runner), each linking the shared CalculatorEngine — this
-      # is the first place simpleCalculator.cpp is compiled and linked against
-      # SDL2. CI overrides CXXFLAGS to add -Werror so new warnings fail the
-      # build, while a local `make` stays non-fatal (Makefile keeps -Wall -Wextra).
+      # Builds every frontend/target via the Makefile (SDL GUI, text CLI, and the
+      # two test runners), each linking the shared CalculatorEngine — this is the
+      # first place simpleCalculator.cpp is compiled and linked against SDL2. CI
+      # overrides CXXFLAGS to add -Werror so new warnings fail the build, while a
+      # local `make` stays non-fatal (Makefile keeps -Wall -Wextra).
       - name: Build (Makefile)
         run: make CXXFLAGS="-std=c++17 -Wall -Wextra -Werror"
 
@@ -29,6 +29,14 @@ jobs:
       # aborts with a non-zero status and fails the job.
       - name: Run engine tests
         run: ./testingParsing
+
+      # Runs the SDL frontend's event-translation tests. The runner has no
+      # display, which is why the suite selects SDL's dummy video driver and
+      # software renderer itself rather than relying on the environment. It
+      # loads the real PNG assets by relative path, so it runs from the
+      # repository directory.
+      - name: Run frontend tests
+        run: ./testingFrontend
 
       # End-to-end check of the text frontend driving the shared engine.
       - name: Smoke-test the text frontend
