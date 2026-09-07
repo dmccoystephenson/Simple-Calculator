@@ -107,6 +107,22 @@ static vector<string> displays(const string& output) {
 	return found;
 }
 
+// The display snapshot printed at the end of the index'th input line (index 0
+// being the startup one), asserting first that the session got that far.
+//
+// The assert is the point: indexing the vector directly throws std::out_of_range
+// on a wrong expectation, and that exception names neither a file, a line, nor a
+// test — it just aborts, leaving the reader to find which of the checks below
+// was responsible. An assert names the expression and its location the way every
+// other check in the three suites does. The failure is easy to reach by accident
+// because a 'q' anywhere in a line ends the session immediately, so a test string
+// with a stray 'q' before its newline produces one fewer snapshot than it reads.
+static string displayAt(const string& output, size_t index) {
+	vector<string> found = displays(output);
+	assert(index < found.size()); // the session ended before this line was rendered
+	return found[index];
+}
+
 // ---------------------------------------------------------------------------
 // Checks
 // ---------------------------------------------------------------------------
@@ -134,13 +150,13 @@ static void testStartupBanner() {
 // method; a character bound to none of them is dropped silently.
 static void testCharacterDispatch() {
 	// digits accumulate left to right and pad the remaining slots
-	assert(displays(runSession("123\nq\n")).at(1) == "123____");
+	assert(displayAt(runSession("123\nq\n"), 1) == "123____");
 
 	// each operator is dispatched, not just '+'
-	assert(displays(runSession("1+2-3*4/5\nq\n")).at(1) == "2-3*4/5"); // window scrolled
+	assert(displayAt(runSession("1+2-3*4/5\nq\n"), 1) == "2-3*4/5"); // window scrolled
 
 	// '.' reaches inputDecimalPoint rather than falling into the ignored bucket
-	assert(displays(runSession("5.5\nq\n")).at(1) == "5.5____");
+	assert(displayAt(runSession("5.5\nq\n"), 1) == "5.5____");
 
 	// spaces, tabs, and letters that bind to nothing are ignored, and — this is
 	// the part worth pinning — they are ignored *silently*: the session prints
@@ -149,14 +165,14 @@ static void testCharacterDispatch() {
 	string withIgnored = runSession("1 2\tx3\nq\n");
 	string withoutIgnored = runSession("123\nq\n");
 	assert(withIgnored == withoutIgnored);
-	assert(displays(withIgnored).at(1) == "123____");
+	assert(displayAt(withIgnored, 1) == "123____");
 }
 
 // A successful '=' prints the result and leaves it on the display.
 static void testEvaluateSuccess() {
 	string out = runSession("12+3=\nq\n");
 	assert(contains(out, "= 15\n"));
-	assert(displays(out).at(1) == "15_____");
+	assert(displayAt(out, 1) == "15_____");
 
 	// true (floating-point) division, matching what README.md promises
 	assert(contains(runSession("7/2=\nq\n"), "= 3.5\n"));
@@ -180,14 +196,14 @@ static void testPrintsDisplayTextNotRawDouble() {
 	string out = runSession("1/3=\nq\n");
 	assert(contains(out, "= 0.33333\n"));
 	assert(!contains(out, "0.333333"));
-	assert(displays(out).at(1) == "0.33333");
+	assert(displayAt(out, 1) == "0.33333");
 
 	// negative zero is the sharper case: the engine deliberately displays it as
 	// a plain "0", while streaming the double would print "-0"
 	string negativeZero = runSession("0*-3=\nq\n");
 	assert(contains(negativeZero, "= 0\n"));
 	assert(!contains(negativeZero, "-0"));
-	assert(displays(negativeZero).at(1) == "0______");
+	assert(displayAt(negativeZero, 1) == "0______");
 }
 
 // Every way evaluate() can fail surfaces as the same one-line diagnostic, and
@@ -197,20 +213,20 @@ static void testEvaluateFailurePrintsDiagnostic() {
 	string trailing = runSession("2+=\nq\n");
 	assert(contains(trailing, "(invalid equation)\n"));
 	assert(!contains(trailing, "= ")); // no result line was printed
-	assert(displays(trailing).at(1) == "2+_____"); // equation left untouched
+	assert(displayAt(trailing, 1) == "2+_____"); // equation left untouched
 
 	// division by zero is reported the same way as a malformed equation, which
 	// is the behavior README.md documents rather than a separate error
 	string byZero = runSession("6/0=\nq\n");
 	assert(contains(byZero, "(invalid equation)\n"));
-	assert(displays(byZero).at(1) == "6/0____");
+	assert(displayAt(byZero, 1) == "6/0____");
 
 	// a result too wide for the seven slots is rejected rather than truncated,
 	// so it reaches the user through this same message; the display keeps
 	// showing the window onto the untouched equation
 	string tooWide = runSession("50000000+49999999=\nq\n");
 	assert(contains(tooWide, "(invalid equation)\n"));
-	assert(displays(tooWide).at(1) == "9999999");
+	assert(displayAt(tooWide, 1) == "9999999");
 
 	// a doubled sign has no operand position left to be a sign in
 	assert(contains(runSession("5---3=\nq\n"), "(invalid equation)\n"));
@@ -220,14 +236,14 @@ static void testEvaluateFailurePrintsDiagnostic() {
 // anything of its own.
 static void testClear() {
 	string out = runSession("12+3c\nq\n");
-	assert(displays(out).at(1) == "_______");
+	assert(displayAt(out, 1) == "_______");
 	assert(!contains(out, "(invalid equation)"));
 
-	assert(displays(runSession("12+3C\nq\n")).at(1) == "_______");
+	assert(displayAt(runSession("12+3C\nq\n"), 1) == "_______");
 
 	// clearing mid-line and then typing again builds a fresh equation, so the
 	// clear takes effect immediately rather than at the end of the line
-	assert(displays(runSession("99c7\nq\n")).at(1) == "7______");
+	assert(displayAt(runSession("99c7\nq\n"), 1) == "7______");
 }
 
 // 'q' returns from main() the moment it is read, so it ends the session from
@@ -256,7 +272,7 @@ static void testEndOfInputTerminates() {
 	assert(shown.at(1) == "5______");
 
 	// a final line with no trailing newline is still consumed by getline
-	assert(displays(runSession("5+5=")).at(1) == "10_____");
+	assert(displayAt(runSession("5+5="), 1) == "10_____");
 
 	// empty input is a session that reads nothing and renders once
 	assert(displays(runSession("")).size() == 1);
@@ -273,7 +289,7 @@ static void testStateSpansLines() {
 	assert(contains(out, "= 15\n"));
 
 	// and each session starts from a fresh engine: the "15" above is gone
-	assert(displays(runSession("+3=\nq\n")).at(1) == "+3_____");
+	assert(displayAt(runSession("+3=\nq\n"), 1) == "+3_____");
 }
 
 // The display is a window onto the *end* of the equation, so a long equation
@@ -281,9 +297,9 @@ static void testStateSpansLines() {
 // rule; the check here is that the text frontend renders the window it is given
 // instead of its own truncation.
 static void testDisplayScrolls() {
-	assert(displays(runSession("1234567\nq\n")).at(1) == "1234567"); // exactly full
-	assert(displays(runSession("12345678\nq\n")).at(1) == "2345678"); // scrolled by one
-	assert(displays(runSession("1234567890\nq\n")).at(1) == "4567890");
+	assert(displayAt(runSession("1234567\nq\n"), 1) == "1234567"); // exactly full
+	assert(displayAt(runSession("12345678\nq\n"), 1) == "2345678"); // scrolled by one
+	assert(displayAt(runSession("1234567890\nq\n"), 1) == "4567890");
 }
 
 // Known limitation, pinned so that fixing it has to update this suite: there is
@@ -292,9 +308,9 @@ static void testDisplayScrolls() {
 static void testNoSingleCharacterDelete() {
 	// backspace is not a bound character; it is ignored like any other, so it
 	// leaves the digit it was meant to remove on the display
-	assert(displays(runSession("123\b\nq\n")).at(1) == "123____");
+	assert(displayAt(runSession("123\b\nq\n"), 1) == "123____");
 	// the only erase available is the whole-equation clear
-	assert(displays(runSession("123c\nq\n")).at(1) == "_______");
+	assert(displayAt(runSession("123c\nq\n"), 1) == "_______");
 }
 
 int main() {
