@@ -23,9 +23,9 @@
 // can be built and run anywhere the engine can.
 //
 // These checks characterize the frontend's *current* behavior. Where that
-// behavior is a known limitation rather than a desired one (no single-character
-// delete, no echo of the character that was ignored), the check pins what
-// happens today and names the issue tracking the change.
+// behavior is a known limitation rather than a desired one — the absence of any
+// single-character delete — the check pins what happens today and names the
+// issue tracking the change.
 
 // Every check here is a bare assert(), and the calls under test sit inside those
 // asserts. <cassert> compiles assert() to nothing when NDEBUG is defined, which
