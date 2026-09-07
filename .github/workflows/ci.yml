@@ -38,7 +38,16 @@ jobs:
       - name: Run frontend tests
         run: ./testingFrontend
 
-      # End-to-end check of the text frontend driving the shared engine.
+      # Runs the text frontend's input-dispatch tests. It includes
+      # textCalculator.cpp directly and drives its main() with std::cin/std::cout
+      # redirected to string buffers, so it needs neither SDL nor the PNG assets
+      # and could run on a runner with no SDL2 installed at all.
+      - name: Run text frontend tests
+        run: ./testingTextFrontend
+
+      # End-to-end check of the text frontend driving the shared engine. This
+      # complements the suite above rather than duplicating it: it is the only
+      # step that runs the real binary as a separate process against a real pipe.
       - name: Smoke-test the text frontend
         run: |
           printf '12+3=\n2*3+4=\nq\n' | ./textCalculator | tee /tmp/out
