@@ -6,7 +6,7 @@ SDL_FLAGS = $(shell pkg-config --cflags --libs sdl2 SDL2_image)
 # the shared, UI-agnostic core every frontend links against
 ENGINE = CalculatorEngine.cpp CalculatorEngine.h
 
-all: simpleCalculator textCalculator testingParsing testingFrontend
+all: simpleCalculator textCalculator testingParsing testingFrontend testingTextFrontend
 
 # GUI frontend (requires SDL2 and SDL2_image)
 simpleCalculator: simpleCalculator.cpp $(ENGINE)
@@ -26,15 +26,22 @@ testingParsing: testingParsing.cpp $(ENGINE)
 testingFrontend: testingFrontend.cpp simpleCalculator.cpp $(ENGINE)
 	$(CXX) $(CXXFLAGS) testingFrontend.cpp CalculatorEngine.cpp -o testingFrontend $(SDL_FLAGS)
 
+# Text/CLI frontend self-tests. It includes textCalculator.cpp directly (that
+# file has no header, and its main() is the thing under test), so — unlike
+# testingFrontend — it needs no SDL and no PNG assets.
+testingTextFrontend: testingTextFrontend.cpp textCalculator.cpp $(ENGINE)
+	$(CXX) $(CXXFLAGS) testingTextFrontend.cpp CalculatorEngine.cpp -o testingTextFrontend
+
 # Rebuilds the self-tests if any source changed, then runs them; a failing
 # assertion aborts with a non-zero status, so this fails the make invocation.
 # testingFrontend loads the PNG assets by relative path, so it has to run from
 # the repository directory — which is where make was invoked.
-test: testingParsing testingFrontend
+test: testingParsing testingFrontend testingTextFrontend
 	./testingParsing
 	./testingFrontend
+	./testingTextFrontend
 
 clean:
-	rm -f simpleCalculator textCalculator testingParsing testingFrontend simpleCalculator.exe testingParsing.exe testingFrontend.exe textCalculator.exe
+	rm -f simpleCalculator textCalculator testingParsing testingFrontend testingTextFrontend simpleCalculator.exe testingParsing.exe testingFrontend.exe testingTextFrontend.exe textCalculator.exe
 
 .PHONY: all clean test

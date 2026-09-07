@@ -17,6 +17,7 @@ The code is split into a shared engine and thin frontends:
 | `textCalculator.cpp` | Text/CLI frontend — renders the display as text and turns typed characters into engine input. |
 | `testingParsing.cpp` | Assert-based test suite for the engine + parser (no SDL). |
 | `testingFrontend.cpp` | Assert-based test suite for the SDL frontend's event translation and display rendering. Runs headlessly (SDL's dummy video driver), so it needs SDL2 but no display. |
+| `testingTextFrontend.cpp` | Assert-based test suite for the text frontend's input dispatch. Drives `textCalculator.cpp`'s `main()` with `std::cin`/`std::cout` redirected to string buffers; needs no SDL. |
 
 A frontend contains no calculation logic of its own; it only translates its
 input events into `CalculatorEngine` calls and renders the display the engine
@@ -40,8 +41,8 @@ sudo apt install g++ libsdl2-dev libsdl2-image-dev
 With the provided `Makefile`:
 
 ```sh
-make            # builds simpleCalculator, textCalculator, testingParsing, and testingFrontend
-make test       # builds (if needed) and runs both test suites
+make            # builds simpleCalculator, textCalculator, and the three test suites
+make test       # builds (if needed) and runs all three test suites
 make clean      # removes built binaries
 ```
 
@@ -59,13 +60,18 @@ g++ -std=c++17 testingParsing.cpp CalculatorEngine.cpp -o testingParsing
 
 # SDL frontend test suite (needs SDL2 + SDL2_image, but no display)
 g++ -std=c++17 testingFrontend.cpp CalculatorEngine.cpp -o testingFrontend $(pkg-config --cflags --libs sdl2 SDL2_image)
+
+# Text frontend test suite (no SDL dependency)
+g++ -std=c++17 testingTextFrontend.cpp CalculatorEngine.cpp -o testingTextFrontend
 ```
 
 `testingFrontend.cpp` includes `simpleCalculator.cpp` directly rather than
 linking it, because the GUI frontend is a single translation unit with no header
 of its own; the suite renames its `main` out of the way and calls the frontend's
 functions in place. That is why `simpleCalculator.cpp` is absent from the
-compile line above.
+compile line above. `testingTextFrontend.cpp` includes `textCalculator.cpp` the
+same way and for the same reason — that frontend's `main()` *is* the thing under
+test — so `textCalculator.cpp` is likewise absent from its compile line.
 
 ### Windows (one-shot)
 
@@ -128,14 +134,16 @@ The text/CLI frontend runs in a terminal — type digits, `.`, and `+ - * /`, th
 
 ## Tests
 
-There are two assert-based suites, each printing a summary on success. A failing
-assertion aborts with a non-zero status, so both work as checks in scripts and
-CI, and `make test` runs them in order:
+There are three assert-based suites — one for the shared engine and one for each
+frontend — each printing a summary on success. A failing assertion aborts with a
+non-zero status, so all three work as checks in scripts and CI, and `make test`
+runs them in order:
 
 ```sh
 make test       # rebuilds first if sources changed
-./testingParsing    # the shared engine: parser, input state, display formatting
-./testingFrontend   # the SDL frontend: event translation and display rendering
+./testingParsing        # the shared engine: parser, input state, display formatting
+./testingFrontend       # the SDL frontend: event translation and display rendering
+./testingTextFrontend   # the text frontend: character dispatch and printed output
 ```
 
 `testingFrontend` covers the part of the GUI that is logic rather than pixels —
@@ -146,10 +154,17 @@ so it needs SDL2 but never a window, a GPU, or a display server. It does load
 the real PNG assets, which is what makes a missing or renamed one a test
 failure, so — like the GUI itself — **run it from the repository directory**.
 
-Because every check in both suites is a bare `assert`, neither can be built with
-`NDEBUG` defined — `assert` would compile to nothing and the binary would report
-success without exercising anything. Both files guard against this with an
-`#error`, so a `CXXFLAGS` override that includes `-DNDEBUG` (such as a
+`testingTextFrontend` does the same for the text frontend: which typed character
+reaches which engine call, what is printed on a successful and a failed `=`, and
+how the display slots are rendered as text. It runs the frontend's real `main()`
+with `std::cin` and `std::cout` redirected to string buffers, so it exercises the
+dispatch as shipped rather than a copy of it. It needs neither SDL nor the PNG
+assets, so it can run anywhere the engine builds.
+
+Because every check in all three suites is a bare `assert`, none can be built
+with `NDEBUG` defined — `assert` would compile to nothing and the binary would
+report success without exercising anything. All three files guard against this
+with an `#error`, so a `CXXFLAGS` override that includes `-DNDEBUG` (such as a
 release-style `-O2 -DNDEBUG`) fails the build instead of passing silently. Build
 the other targets with those flags if needed, and leave the suites' assertions
 enabled.
