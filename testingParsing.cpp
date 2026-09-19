@@ -827,7 +827,8 @@ static void testEngineInput() {
 
 	// the negative counterpart sits one digit lower because the sign takes a
 	// slot: -999999.4 rounds down and fills the display exactly, while
-	// -999999.5 rounds to a seven-character "-1000000" and is rejected
+	// -999999.5 rounds to a seven-character "1000000" against the six-slot
+	// budget the sign leaves, and is rejected
 	engine.clear();
 	engine.inputDigit(0);
 	engine.inputOperator('-');
