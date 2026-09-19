@@ -697,6 +697,163 @@ static void testEngineInput() {
 	assert(engine.equationText() == "-10");
 	assert(displayString(engine) == "-10____");
 
+	// the two carry cases above are the only ones so far where rounding and
+	// truncation would show different digits — 1/3 reads "0.33333" either way.
+	// A fraction whose sixth digit rounds the fifth *up* without carrying pins
+	// the ordinary case: "%.5f" of 2/3 is "0.66667", where truncating after the
+	// digits that fit would have shown "0.66666"
+	engine.clear();
+	engine.inputDigit(2);
+	engine.inputOperator('/');
+	engine.inputDigit(3);
+	assert(engine.evaluate(result) && nearlyEqual(result, 2.0 / 3.0));
+	assert(engine.equationText() == "0.66667");
+	assert(displayString(engine) == "0.66667");
+
+	// with a sign in play the same fraction gets one decimal fewer, and it is
+	// the *rounded* four-digit value that shows ("0.6667", not "0.6666" with
+	// the fifth digit dropped): the sign costs a fractional digit, not the
+	// rounding
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	engine.inputDigit(2);
+	engine.inputOperator('/');
+	engine.inputDigit(3);
+	assert(engine.evaluate(result) && nearlyEqual(result, -2.0 / 3.0));
+	assert(engine.equationText() == "-0.6667");
+	assert(displayString(engine) == "-0.6667");
+
+	// a terminating fraction that fits is neither rounded nor padded, with or
+	// without a sign: the trailing-zero strip only ever removes zeros
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(8);
+	assert(engine.evaluate(result) && result == 0.125);
+	assert(displayString(engine) == "0.125__");
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(8);
+	assert(engine.evaluate(result) && result == -0.125);
+	assert(displayString(engine) == "-0.125_");
+
+	// a positive fraction that rounds away entirely displays as a bare integer
+	// with no '.', the same as a whole-number result: "%.5f" of 2.000001 is
+	// "2.00000", and the all-zero fraction is stripped. This is the positive
+	// twin of the "1-1.00001" case above, which has the sign to worry about
+	// as well; here the only question is whether a '.' survives
+	engine.clear();
+	engine.inputDigit(2);
+	engine.inputDecimalPoint();
+	for (int repeat = 0; repeat < 5; repeat++) {
+		engine.inputDigit(0);
+	}
+	engine.inputDigit(1);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "2.000001+0");
+	assert(engine.evaluate(result) && nearlyEqual(result, 2.000001));
+	assert(engine.equationText() == "2");
+	assert(displayString(engine) == "2______");
+
+	// when the integer part leaves no room for a '.' and a digit (six or seven
+	// digits wide), the fraction is not dropped but rounded into the integer:
+	// formatForDisplay's "no room for a fractional part" branch uses llround,
+	// so 1234567.5 displays as "1234568" and 1234567.4 as "1234567". The other
+	// cases that reach this branch ("5000000+4999999", "0-999999") are already
+	// whole numbers, so they cannot tell rounding from truncation
+	engine.clear();
+	for (int d = 1; d <= 7; d++) {
+		engine.inputDigit(d);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "1234567.5+0");
+	assert(engine.evaluate(result) && result == 1234567.5);
+	assert(engine.equationText() == "1234568");
+	assert(displayString(engine) == "1234568");
+
+	engine.clear();
+	for (int d = 1; d <= 7; d++) {
+		engine.inputDigit(d);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(4);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.evaluate(result) && nearlyEqual(result, 1234567.4));
+	assert(engine.equationText() == "1234567");
+
+	// that rounding can carry into a seventh digit and still fit: a six-digit
+	// integer part leaves exactly one slot, which is not enough for ".5", so
+	// 999999.5 rounds to the seven-character "1000000" instead
+	engine.clear();
+	for (int repeat = 0; repeat < 6; repeat++) {
+		engine.inputDigit(9);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "999999.5+0");
+	assert(engine.evaluate(result) && result == 999999.5);
+	assert(engine.equationText() == "1000000");
+	assert(displayString(engine) == "1000000");
+
+	// but when the carry pushes the integer part past the budget the result is
+	// rejected, even though the *truncated* integer part would have fit: the
+	// display never shows a value it had to lie about, so 9999999.5 (which
+	// llround makes 10000000, eight characters) is refused the same way the
+	// eight-digit "50000000+49999999" is, and the equation is left alone
+	engine.clear();
+	for (int repeat = 0; repeat < 7; repeat++) {
+		engine.inputDigit(9);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "9999999.5+0");
+	assert(parseEquation(engine.equationText(), result) && result == 9999999.5);
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "9999999.5+0");
+	assert(displayString(engine) == "999.5+0"); // the last seven characters, untouched
+
+	// the negative counterpart sits one digit lower because the sign takes a
+	// slot: -999999.4 rounds down and fills the display exactly, while
+	// -999999.5 rounds to a seven-character "1000000" against the six-slot
+	// budget the sign leaves, and is rejected
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	for (int repeat = 0; repeat < 6; repeat++) {
+		engine.inputDigit(9);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(4);
+	assert(engine.equationText() == "0-999999.4");
+	assert(engine.evaluate(result) && nearlyEqual(result, -999999.4));
+	assert(engine.equationText() == "-999999");
+	assert(displayString(engine) == "-999999");
+
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	for (int repeat = 0; repeat < 6; repeat++) {
+		engine.inputDigit(9);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	assert(engine.equationText() == "0-999999.5");
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "0-999999.5");
+
 	// the display is a window onto the end of the equation: once the equation
 	// outgrows the seven slots the window scrolls, so what is shown stays a
 	// truthful suffix of what will be evaluated (it used to overwrite the
