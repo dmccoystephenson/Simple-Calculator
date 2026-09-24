@@ -3,6 +3,7 @@
 // display logic of its own, only the translation between terminal I/O and the
 // engine. It is the simplest demonstration that the engine is UI-agnostic.
 #include "CalculatorEngine.h"
+#include "usageReporting.h"
 
 #include <iostream>
 #include <string>
@@ -21,6 +22,12 @@ static void printDisplay(const CalculatorEngine& engine) {
 }
 
 int main() {
+	// One startup event to trace, sent in the background; see usageReporting.h
+	// and the README's "Usage reporting" section. The destructor gives it a
+	// moment to leave when the session ends.
+	usage_reporting::UsageReporter usageReporting;
+	usageReporting.reportStartup();
+
 	CalculatorEngine engine;
 	cout << "Simple Calculator (text mode)\n";
 	cout << "Type digits, '.', and + - * / to build an equation, then:\n";

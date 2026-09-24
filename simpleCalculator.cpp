@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include "CalculatorEngine.h"
+#include "usageReporting.h"
 
 // using namespace std
 using namespace std;
@@ -449,6 +450,11 @@ void displayButtonTextures() {
 
 // argc/argv are unnamed: SDL requires this signature, but the app uses neither
 int main(int, char*[]) {
+	// One startup event to trace, sent in the background; see usageReporting.h
+	// and the README's "Usage reporting" section.
+	usage_reporting::UsageReporter usageReporting;
+	usageReporting.reportStartup();
+
 	if (!init()) {
 		cerr << "Initialization failed, exiting." << endl;
 		close(); // tear down whatever init() managed to set up before it failed

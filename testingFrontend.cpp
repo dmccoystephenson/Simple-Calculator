@@ -43,6 +43,9 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+// Included before the rename so its system headers never see `main` as a
+// macro; the include guard makes the frontend's own #include a no-op.
+#include "usageReporting.h"
 
 // Rename the frontend's entry point so this file can supply its own, then pull
 // in the translation unit under test.
@@ -508,6 +511,9 @@ int main() {
 	// `./testingFrontend` and independent of whether a display server exists.
 	setenv("SDL_VIDEODRIVER", "dummy", 1);
 	setenv("SDL_RENDER_DRIVER", "software", 1);
+	// The suite never calls the frontend's main(), which reports usage to
+	// trace; this keeps it that way should one ever do.
+	setenv("TRACE_USAGE_REPORTING", "off", 1);
 
 	if (!init()) {
 		cerr << "testingFrontend: init() failed, cannot run frontend tests" << endl;

@@ -1,5 +1,10 @@
 CXX      = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra
+# The frontends report usage to trace on a background thread (usageReporting.h),
+# and tag the startup event with this version.
+THREAD_FLAGS = -pthread
+VERSION_FLAGS = -DSIMPLE_CALCULATOR_VERSION='"$(shell cat version.txt)"'
+USAGE = usageReporting.h trace_client.hpp version.txt
 # SDL2 + SDL2_image flags (resolved via pkg-config)
 SDL_FLAGS = $(shell pkg-config --cflags --libs sdl2 SDL2_image)
 
@@ -9,12 +14,12 @@ ENGINE = CalculatorEngine.cpp CalculatorEngine.h
 all: simpleCalculator textCalculator testingParsing testingFrontend testingTextFrontend
 
 # GUI frontend (requires SDL2 and SDL2_image)
-simpleCalculator: simpleCalculator.cpp $(ENGINE)
-	$(CXX) $(CXXFLAGS) simpleCalculator.cpp CalculatorEngine.cpp -o simpleCalculator $(SDL_FLAGS)
+simpleCalculator: simpleCalculator.cpp $(ENGINE) $(USAGE)
+	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) $(VERSION_FLAGS) simpleCalculator.cpp CalculatorEngine.cpp -o simpleCalculator $(SDL_FLAGS)
 
 # Text/CLI frontend (no SDL dependency)
-textCalculator: textCalculator.cpp $(ENGINE)
-	$(CXX) $(CXXFLAGS) textCalculator.cpp CalculatorEngine.cpp -o textCalculator
+textCalculator: textCalculator.cpp $(ENGINE) $(USAGE)
+	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) $(VERSION_FLAGS) textCalculator.cpp CalculatorEngine.cpp -o textCalculator
 
 # Engine + parser self-tests (no SDL dependency)
 testingParsing: testingParsing.cpp $(ENGINE)
@@ -23,14 +28,14 @@ testingParsing: testingParsing.cpp $(ENGINE)
 # SDL frontend self-tests. It includes simpleCalculator.cpp directly (that file
 # has no header), so it links SDL2 the same way the GUI does; it runs headlessly
 # via SDL's dummy video driver, which it selects itself.
-testingFrontend: testingFrontend.cpp simpleCalculator.cpp $(ENGINE)
-	$(CXX) $(CXXFLAGS) testingFrontend.cpp CalculatorEngine.cpp -o testingFrontend $(SDL_FLAGS)
+testingFrontend: testingFrontend.cpp simpleCalculator.cpp $(ENGINE) $(USAGE)
+	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) $(VERSION_FLAGS) testingFrontend.cpp CalculatorEngine.cpp -o testingFrontend $(SDL_FLAGS)
 
 # Text/CLI frontend self-tests. It includes textCalculator.cpp directly (that
 # file has no header, and its main() is the thing under test), so — unlike
 # testingFrontend — it needs no SDL and no PNG assets.
-testingTextFrontend: testingTextFrontend.cpp textCalculator.cpp $(ENGINE)
-	$(CXX) $(CXXFLAGS) testingTextFrontend.cpp CalculatorEngine.cpp -o testingTextFrontend
+testingTextFrontend: testingTextFrontend.cpp textCalculator.cpp $(ENGINE) $(USAGE)
+	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) $(VERSION_FLAGS) testingTextFrontend.cpp CalculatorEngine.cpp -o testingTextFrontend
 
 # Rebuilds the self-tests if any source changed, then runs them; a failing
 # assertion aborts with a non-zero status, so this fails the make invocation.
