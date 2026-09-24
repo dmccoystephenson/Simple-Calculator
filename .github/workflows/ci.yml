@@ -9,6 +9,11 @@ jobs:
   build:
     name: Build & test
     runs-on: ubuntu-latest
+    # The frontends report a startup event to trace (see the README's "Usage
+    # reporting"); CI runs the real text frontend below, and must not count as
+    # a use of the program.
+    env:
+      TRACE_USAGE_REPORTING: "off"
     steps:
       - uses: actions/checkout@v4
 

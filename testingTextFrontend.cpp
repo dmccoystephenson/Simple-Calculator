@@ -42,10 +42,17 @@
 // seen while `main` is a macro.
 #include <cassert>
 #include <cctype>
+#include <cstdlib>
+#include <cstdio>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
+// The frontend's usage-reporting header (and the system headers it pulls in)
+// is included here for the same reason; its include guard makes the
+// frontend's own #include a no-op.
+#include "usageReporting.h"
 
 // Rename the frontend's entry point so this file can supply its own, then pull
 // in the translation unit under test.
@@ -313,7 +320,62 @@ static void testNoSingleCharacterDelete() {
 	assert(displayAt(runSession("123c\nq\n"), 1) == "_______");
 }
 
+// Usage reporting (usageReporting.h): the first run prints one notice and leaves
+// a settings file; later runs are quiet; enabled=false and the environment
+// opt-out turn reporting off. HOME/XDG_CONFIG_HOME point at a fresh temporary
+// directory and the endpoint at a closed loopback port, so neither the real
+// config directory nor the real trace server is touched.
+static void testUsageReportingNoticeAndOptOuts() {
+	char pattern[] = "/tmp/simple-calculator-usage-XXXXXX";
+	string home = mkdtemp(pattern);
+	setenv("HOME", home.c_str(), 1);
+	setenv("XDG_CONFIG_HOME", (home + "/.config").c_str(), 1);
+	setenv(usage_reporting::ENV_ENDPOINT, "http://127.0.0.1:9", 1);
+	unsetenv("TRACE_USAGE_REPORTING");
+	unsetenv("DO_NOT_TRACK");
+	string settings = home + "/.config/Simple-Calculator/usage-reporting.conf";
+
+	ostringstream first;
+	{
+		usage_reporting::UsageReporter reporter(first);
+		assert(reporter.isEnabled());
+	}
+	assert(first.str().find("Usage reporting is on: Simple-Calculator") != string::npos);
+	assert(first.str().find("TRACE_USAGE_REPORTING=off") != string::npos);
+	assert(first.str().find("https://github.com/Stephenson-Software/trace#usage-reporting") != string::npos);
+	assert(first.str().find(settings) != string::npos);
+	assert(ifstream(settings.c_str()).good());
+
+	ostringstream second;
+	{ usage_reporting::UsageReporter reporter(second); }
+	assert(second.str().empty());
+
+	ofstream(settings.c_str()) << "enabled=false\n";
+	{
+		usage_reporting::UsageReporter reporter(second);
+		assert(!reporter.isEnabled());
+		assert(reporter.disabledReason() == "config");
+	}
+
+	setenv("TRACE_USAGE_REPORTING", "off", 1);
+	remove(settings.c_str());
+	ostringstream quiet;
+	{
+		usage_reporting::UsageReporter reporter(quiet);
+		assert(reporter.disabledReason() == "environment");
+	}
+	assert(quiet.str().empty());
+	assert(!ifstream(settings.c_str()).good());
+	remove((home + "/.config/Simple-Calculator").c_str());
+	remove((home + "/.config").c_str());
+	remove(home.c_str());
+}
+
 int main() {
+	// Every session runs the frontend's real main(), which would report usage
+	// to trace; the tests must never reach the real server.
+	setenv("TRACE_USAGE_REPORTING", "off", 1);
+
 	testStartupBanner();
 	testCharacterDispatch();
 	testEvaluateSuccess();
@@ -325,6 +387,7 @@ int main() {
 	testStateSpansLines();
 	testDisplayScrolls();
 	testNoSingleCharacterDelete();
+	testUsageReportingNoticeAndOptOuts();
 
 	cout << "All text frontend tests passed." << endl;
 	return 0;

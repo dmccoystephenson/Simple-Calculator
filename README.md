@@ -50,20 +50,24 @@ Or compile directly with `g++` (each frontend links the shared engine):
 
 ```sh
 # GUI calculator (needs SDL2 + SDL2_image)
-g++ -std=c++17 simpleCalculator.cpp CalculatorEngine.cpp -o simpleCalculator $(pkg-config --cflags --libs sdl2 SDL2_image)
+g++ -std=c++17 -pthread simpleCalculator.cpp CalculatorEngine.cpp -o simpleCalculator $(pkg-config --cflags --libs sdl2 SDL2_image)
 
 # Text/CLI calculator (no SDL dependency)
-g++ -std=c++17 textCalculator.cpp CalculatorEngine.cpp -o textCalculator
+g++ -std=c++17 -pthread textCalculator.cpp CalculatorEngine.cpp -o textCalculator
 
 # Engine + parser test suite (no SDL dependency)
 g++ -std=c++17 testingParsing.cpp CalculatorEngine.cpp -o testingParsing
 
 # SDL frontend test suite (needs SDL2 + SDL2_image, but no display)
-g++ -std=c++17 testingFrontend.cpp CalculatorEngine.cpp -o testingFrontend $(pkg-config --cflags --libs sdl2 SDL2_image)
+g++ -std=c++17 -pthread testingFrontend.cpp CalculatorEngine.cpp -o testingFrontend $(pkg-config --cflags --libs sdl2 SDL2_image)
 
 # Text frontend test suite (no SDL dependency)
-g++ -std=c++17 testingTextFrontend.cpp CalculatorEngine.cpp -o testingTextFrontend
+g++ -std=c++17 -pthread testingTextFrontend.cpp CalculatorEngine.cpp -o testingTextFrontend
 ```
+
+`-pthread` is there because both frontends report usage on a background thread
+(see [Usage reporting](#usage-reporting)); `make` also passes the version from
+`version.txt`, which a direct build reads from the working directory instead.
 
 `testingFrontend.cpp` includes `simpleCalculator.cpp` directly rather than
 linking it, because the GUI frontend is a single translation unit with no header
@@ -216,3 +220,29 @@ entered or produced directly (`-0`, `0*-3`, `0/-5`).
 
 See the [issue tracker](../../issues)
 for known limitations and planned work.
+
+## Usage reporting
+
+Both frontends report to [trace](https://trace.danielstephenson.dev) by default:
+one `startup` event per launch, carrying the program name (`Simple-Calculator`)
+and its version from `version.txt`. Nothing about you, your machine, your IP
+address or your calculations is sent.
+
+The first run prints one line saying so on stderr and writes a small settings
+file, `usage-reporting.conf`, to `$XDG_CONFIG_HOME/Simple-Calculator/` (by
+default `~/.config/Simple-Calculator/`; `~/Library/Application Support/Simple-Calculator/`
+on macOS, `%APPDATA%\Simple-Calculator\` on Windows). To turn reporting off:
+
+- set `enabled=false` in that file, or
+- set `TRACE_USAGE_REPORTING=off` or `DO_NOT_TRACK=1` in the environment (this
+  turns it off for every trace-reporting program, and nothing is printed or
+  written).
+
+The event is sent in the background by the vendored
+[trace-client-cpp](https://github.com/Stephenson-Software/trace-client-cpp)
+header (`trace_client.hpp`) through the system `curl`; if curl is missing or
+the machine is offline, nothing is sent and the calculator is unaffected. The
+test suites never report, and CI runs with `TRACE_USAGE_REPORTING=off`.
+`SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT` points reporting at another
+server, e.g. a local one while testing.
+Details: https://github.com/Stephenson-Software/trace#usage-reporting
