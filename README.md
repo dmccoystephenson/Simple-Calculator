@@ -15,9 +15,11 @@ The code is split into a shared engine and thin frontends:
 | `CalculatorEngine.h` / `.cpp` | UI-agnostic core — input state, the 7-slot display model, and evaluation via the shunting-yard parser. Knows nothing about SDL or a terminal. |
 | `simpleCalculator.cpp` | SDL/GUI frontend — renders the engine's display as textures and turns mouse clicks and key presses into engine input. |
 | `textCalculator.cpp` | Text/CLI frontend — renders the display as text and turns typed characters into engine input. |
+| `usageReporting.h` | Usage reporting shared by both frontends — the opt-out checks, the first-run notice, the settings file, and the one `startup` event (see [Usage reporting](#usage-reporting)). Contains no calculation logic. |
+| `trace_client.hpp` | Vendored single-header [trace-client-cpp](https://github.com/Stephenson-Software/trace-client-cpp) that `usageReporting.h` sends the event through. |
 | `testingParsing.cpp` | Assert-based test suite for the engine + parser (no SDL). |
 | `testingFrontend.cpp` | Assert-based test suite for the SDL frontend's event translation and display rendering. Runs headlessly (SDL's dummy video driver), so it needs SDL2 but no display. |
-| `testingTextFrontend.cpp` | Assert-based test suite for the text frontend's input dispatch. Drives `textCalculator.cpp`'s `main()` with `std::cin`/`std::cout` redirected to string buffers; needs no SDL. |
+| `testingTextFrontend.cpp` | Assert-based test suite for the text frontend's input dispatch and for usage reporting. Drives `textCalculator.cpp`'s `main()` with `std::cin`/`std::cout` redirected to string buffers; needs no SDL. |
 
 A frontend contains no calculation logic of its own; it only translates its
 input events into `CalculatorEngine` calls and renders the display the engine
@@ -163,7 +165,11 @@ reaches which engine call, what is printed on a successful and a failed `=`, and
 how the display slots are rendered as text. It runs the frontend's real `main()`
 with `std::cin` and `std::cout` redirected to string buffers, so it exercises the
 dispatch as shipped rather than a copy of it. It needs neither SDL nor the PNG
-assets, so it can run anywhere the engine builds.
+assets, so it can run anywhere the engine builds. It also covers usage
+reporting: the first-run notice and settings file, the quiet later runs, and
+the `enabled=false` and `TRACE_USAGE_REPORTING=off` opt-outs, with `HOME`
+pointed at a temporary directory and the endpoint at a closed local port so
+neither your real settings nor the real trace server is touched.
 
 Because every check in all three suites is a bare `assert`, none can be built
 with `NDEBUG` defined — `assert` would compile to nothing and the binary would
