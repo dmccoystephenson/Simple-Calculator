@@ -321,8 +321,8 @@ static void testNoSingleCharacterDelete() {
 }
 
 // Usage reporting (usageReporting.h): the first run prints one notice and leaves
-// a settings file; later runs are quiet; enabled=false and the environment
-// opt-out turn reporting off. HOME/XDG_CONFIG_HOME point at a fresh temporary
+// a settings file; later runs are quiet; enabled=false and each environment
+// opt-out (TRACE_USAGE_REPORTING=off, DO_NOT_TRACK=1) turn reporting off. HOME/XDG_CONFIG_HOME point at a fresh temporary
 // directory and the endpoint at a closed loopback port, so neither the real
 // config directory nor the real trace server is touched.
 static void testUsageReportingNoticeAndOptOuts() {
@@ -366,6 +366,25 @@ static void testUsageReportingNoticeAndOptOuts() {
 	}
 	assert(quiet.str().empty());
 	assert(!ifstream(settings.c_str()).good());
+
+	// DO_NOT_TRACK=1 is the README's other environment opt-out, and it must work
+	// on its own: with TRACE_USAGE_REPORTING unset and no settings file yet, it
+	// is still silent and writes nothing. Without this check, losing DO_NOT_TRACK
+	// would pass this suite, because the block above opts out through
+	// TRACE_USAGE_REPORTING alone.
+	unsetenv("TRACE_USAGE_REPORTING");
+	setenv("DO_NOT_TRACK", "1", 1);
+	ostringstream doNotTrack;
+	{
+		usage_reporting::UsageReporter reporter(doNotTrack);
+		assert(!reporter.isEnabled());
+		assert(reporter.disabledReason() == "environment");
+	}
+	assert(doNotTrack.str().empty());
+	assert(!ifstream(settings.c_str()).good());
+	unsetenv("DO_NOT_TRACK");
+	setenv("TRACE_USAGE_REPORTING", "off", 1); // main()'s setting, for anything after
+
 	remove((home + "/.config/Simple-Calculator").c_str());
 	remove((home + "/.config").c_str());
 	remove(home.c_str());
