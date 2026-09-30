@@ -390,6 +390,84 @@ static void testUsageReportingNoticeAndOptOuts() {
 	remove(home.c_str());
 }
 
+// The settings file is parsed by readSettings(), which is a pure function of
+// the file's text, so it is checked directly rather than through a reporter
+// (whose endpoint is not observable from outside the client). These cases pin
+// what a hand-edited file is allowed to look like: comments and blank lines are
+// skipped, names and values are trimmed, the name is case-insensitive, and
+// "false", "off", "no" and "0" in any case all turn reporting off.
+static void testUsageReportingSettingsFile() {
+	char pattern[] = "/tmp/simple-calculator-settings-XXXXXX";
+	string directory = mkdtemp(pattern);
+	string path = directory + "/usage-reporting.conf";
+
+	// no file at all is the first-run state: reporting on, no endpoint override
+	usage_reporting::Settings missing = usage_reporting::readSettings(path);
+	assert(!missing.exists);
+	assert(missing.enabled);
+	assert(missing.endpoint.empty());
+	// an empty path (no home to put the file in) is treated the same way
+	assert(!usage_reporting::readSettings("").exists);
+
+	// the file the first run writes leaves reporting on
+	ofstream(path.c_str()) << usage_reporting::settingsFileContent();
+	usage_reporting::Settings written = usage_reporting::readSettings(path);
+	assert(written.exists);
+	assert(written.enabled);
+	assert(written.endpoint.empty());
+
+	const char* offValues[] = {"false", "off", "no", "0", "FALSE", "Off"};
+	for (const char* value : offValues) {
+		ofstream(path.c_str()) << "enabled=" << value << "\n";
+		assert(!usage_reporting::readSettings(path).enabled);
+	}
+	// anything else leaves it on: an unreadable setting never turns reporting
+	// off by accident, and never turns it back on for someone who opted out
+	// with one of the spellings above
+	const char* onValues[] = {"true", "yes", "1", "maybe", ""};
+	for (const char* value : onValues) {
+		ofstream(path.c_str()) << "enabled=" << value << "\n";
+		assert(usage_reporting::readSettings(path).enabled);
+	}
+
+	// whitespace around the name and value, a capitalized name, a comment line
+	// that looks like a setting, and a line with no '=' are all tolerated; the
+	// last enabled line wins
+	ofstream(path.c_str())
+		<< "# enabled=true\n"
+		<< "\n"
+		<< "not a setting\n"
+		<< "  Enabled =  true \n"
+		<< "enabled = false\r\n"
+		<< " endpoint = http://127.0.0.1:9 \n";
+	usage_reporting::Settings edited = usage_reporting::readSettings(path);
+	assert(edited.exists);
+	assert(!edited.enabled);
+	// endpoint= is the file's counterpart to SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT
+	// (the environment variable wins over it — see UsageReporter's constructor)
+	assert(edited.endpoint == "http://127.0.0.1:9");
+
+	remove(path.c_str());
+	remove(directory.c_str());
+}
+
+// Every event is tagged with version(), and a blank version turns the trace
+// client off, so it must never be blank. A Makefile build passes version.txt in
+// as SIMPLE_CALCULATOR_VERSION and a direct g++ build reads version.txt from the
+// working directory; either way, run from the repository directory (as make
+// test does), the result is version.txt's first line with surrounding
+// whitespace removed.
+static void testUsageReportingVersion() {
+	ifstream in("version.txt");
+	assert(in.good()); // run from the repository directory
+	string line;
+	getline(in, line);
+	string expected = usage_reporting::trim(line);
+	assert(!expected.empty());
+	assert(usage_reporting::version() == expected);
+	assert(usage_reporting::version() != "unknown");
+}
+
 int main() {
 	// Every session runs the frontend's real main(), which would report usage
 	// to trace; the tests must never reach the real server.
@@ -407,6 +485,8 @@ int main() {
 	testDisplayScrolls();
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
+	testUsageReportingSettingsFile();
+	testUsageReportingVersion();
 
 	cout << "All text frontend tests passed." << endl;
 	return 0;

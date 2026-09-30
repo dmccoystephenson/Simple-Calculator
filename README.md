@@ -167,9 +167,11 @@ with `std::cin` and `std::cout` redirected to string buffers, so it exercises th
 dispatch as shipped rather than a copy of it. It needs neither SDL nor the PNG
 assets, so it can run anywhere the engine builds. It also covers usage
 reporting: the first-run notice and settings file, the quiet later runs, and
-the `enabled=false` and `TRACE_USAGE_REPORTING=off` opt-outs, with `HOME`
-pointed at a temporary directory and the endpoint at a closed local port so
-neither your real settings nor the real trace server is touched.
+the `enabled=false`, `TRACE_USAGE_REPORTING=off`, and `DO_NOT_TRACK=1`
+opt-outs, how a hand-edited settings file is read, and that the reported
+version matches `version.txt`, with `HOME` pointed at a temporary directory and
+the endpoint at a closed local port so neither your real settings nor the real
+trace server is touched.
 
 Because every check in all three suites is a bare `assert`, none can be built
 with `NDEBUG` defined — `assert` would compile to nothing and the binary would
@@ -239,7 +241,7 @@ file, `usage-reporting.conf`, to `$XDG_CONFIG_HOME/Simple-Calculator/` (by
 default `~/.config/Simple-Calculator/`; `~/Library/Application Support/Simple-Calculator/`
 on macOS, `%APPDATA%\Simple-Calculator\` on Windows). To turn reporting off:
 
-- set `enabled=false` in that file, or
+- set `enabled=false` (or `off`, `no`, `0`, in any case) in that file, or
 - set `TRACE_USAGE_REPORTING=off` or `DO_NOT_TRACK=1` in the environment (this
   turns it off for every trace-reporting program, and nothing is printed or
   written).
@@ -250,5 +252,6 @@ header (`trace_client.hpp`) through the system `curl`; if curl is missing or
 the machine is offline, nothing is sent and the calculator is unaffected. The
 test suites never report, and CI runs with `TRACE_USAGE_REPORTING=off`.
 `SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT` points reporting at another
-server, e.g. a local one while testing.
+server, e.g. a local one while testing; an `endpoint=` line in the settings
+file does the same.
 Details: https://github.com/Stephenson-Software/trace#usage-reporting
