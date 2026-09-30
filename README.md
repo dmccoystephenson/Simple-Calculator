@@ -253,5 +253,5 @@ the machine is offline, nothing is sent and the calculator is unaffected. The
 test suites never report, and CI runs with `TRACE_USAGE_REPORTING=off`.
 `SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT` points reporting at another
 server, e.g. a local one while testing; an `endpoint=` line in the settings
-file does the same, and the environment variable wins if both are set.
+file does the same.
 Details: https://github.com/Stephenson-Software/trace#usage-reporting
