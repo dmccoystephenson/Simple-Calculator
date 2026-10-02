@@ -168,7 +168,8 @@ dispatch as shipped rather than a copy of it. It needs neither SDL nor the PNG
 assets, so it can run anywhere the engine builds. It also covers usage
 reporting: the first-run notice and settings file, the quiet later runs, and
 the `enabled=false`, `TRACE_USAGE_REPORTING=off`, and `DO_NOT_TRACK=1`
-opt-outs, how a hand-edited settings file is read, and that the reported
+opt-outs, how a hand-edited settings file is read, which endpoint wins when
+both the environment variable and `endpoint=` are set, and that the reported
 version matches `version.txt`, with `HOME` pointed at a temporary directory and
 the endpoint at a closed local port so neither your real settings nor the real
 trace server is touched.
@@ -253,5 +254,5 @@ the machine is offline, nothing is sent and the calculator is unaffected. The
 test suites never report, and CI runs with `TRACE_USAGE_REPORTING=off`.
 `SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT` points reporting at another
 server, e.g. a local one while testing; an `endpoint=` line in the settings
-file does the same.
+file does the same, and the environment variable wins if both are set.
 Details: https://github.com/Stephenson-Software/trace#usage-reporting
