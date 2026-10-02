@@ -444,11 +444,40 @@ static void testUsageReportingSettingsFile() {
 	assert(edited.exists);
 	assert(!edited.enabled);
 	// endpoint= is the file's counterpart to SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT
-	// (the environment variable wins over it — see UsageReporter's constructor)
+	// (the environment variable wins over it — see testUsageReportingEndpoint)
 	assert(edited.endpoint == "http://127.0.0.1:9");
 
 	remove(path.c_str());
 	remove(directory.c_str());
+}
+
+// resolveEndpoint() decides where UsageReporter sends events; the client keeps
+// the result private, so the order is checked here rather than through a
+// reporter. Each source gets a distinct value so a swapped order cannot pass.
+static void testUsageReportingEndpoint() {
+	usage_reporting::Settings fromFile;
+	fromFile.endpoint = "http://settings.invalid";
+	usage_reporting::Settings noFile;
+
+	// neither set: the real trace server
+	unsetenv(usage_reporting::ENV_ENDPOINT);
+	assert(usage_reporting::resolveEndpoint(noFile) == usage_reporting::DEFAULT_ENDPOINT);
+	// endpoint= in the settings file beats the default
+	assert(usage_reporting::resolveEndpoint(fromFile) == "http://settings.invalid");
+
+	// the environment variable beats both, and is trimmed like a file value
+	setenv(usage_reporting::ENV_ENDPOINT, "  http://environment.invalid \n", 1);
+	assert(usage_reporting::resolveEndpoint(fromFile) == "http://environment.invalid");
+	assert(usage_reporting::resolveEndpoint(noFile) == "http://environment.invalid");
+
+	// a whitespace-only (or empty) value counts as unset, so a stray export
+	// cannot point reporting nowhere
+	setenv(usage_reporting::ENV_ENDPOINT, " \t", 1);
+	assert(usage_reporting::resolveEndpoint(fromFile) == "http://settings.invalid");
+	setenv(usage_reporting::ENV_ENDPOINT, "", 1);
+	assert(usage_reporting::resolveEndpoint(noFile) == usage_reporting::DEFAULT_ENDPOINT);
+
+	unsetenv(usage_reporting::ENV_ENDPOINT);
 }
 
 // Every event is tagged with version(), and a blank version turns the trace
@@ -486,6 +515,7 @@ int main() {
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
 	testUsageReportingSettingsFile();
+	testUsageReportingEndpoint();
 	testUsageReportingVersion();
 
 	cout << "All text frontend tests passed." << endl;

@@ -154,6 +154,21 @@ inline Settings readSettings(const std::string &path) {
     return settings;
 }
 
+/**
+ * Where events go: SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT if it is set to
+ * anything but whitespace, else the settings file's endpoint=, else
+ * DEFAULT_ENDPOINT. The environment wins so a single run can be pointed at a
+ * test server without editing the file. Kept apart from UsageReporter because
+ * the client keeps its endpoint private, so this is the only place the order
+ * can be checked.
+ */
+inline std::string resolveEndpoint(const Settings &settings) {
+    std::string fromEnvironment = trim(environment(ENV_ENDPOINT));
+    if (!fromEnvironment.empty()) return fromEnvironment;
+    if (!settings.endpoint.empty()) return settings.endpoint;
+    return DEFAULT_ENDPOINT;
+}
+
 inline std::string settingsFileContent() {
     return std::string("# ") + PROGRAM_NAME + " usage reporting - "
         + DETAILS_URL + "\n"
@@ -201,10 +216,12 @@ public:
     explicit UsageReporter(std::ostream &notices = std::cerr) : client_(NULL) {
         try {
             bool enabled = true;
-            std::string endpoint = DEFAULT_ENDPOINT;
+            // Left at its defaults (no endpoint=) when the environment opts out,
+            // since the file is not read then.
+            Settings settings;
             if (!trace_client::environmentOptsOut()) {
                 std::string path = settingsPath();
-                Settings settings = readSettings(path);
+                settings = readSettings(path);
                 if (!settings.exists) {
                     if (!path.empty() && makeDirectories(configDirectory())) {
                         std::ofstream out(path.c_str());
@@ -213,13 +230,10 @@ public:
                     notices << notice(path) << std::endl;
                 }
                 enabled = settings.enabled;
-                if (!settings.endpoint.empty()) endpoint = settings.endpoint;
             }
-            std::string fromEnvironment = trim(environment(ENV_ENDPOINT));
-            if (!fromEnvironment.empty()) endpoint = fromEnvironment;
             // Always built through the client, even when off: it checks the
             // environment first and records why it is off.
-            client_ = new trace_client::TraceClient(endpoint, PROGRAM_NAME, version(), KEY, enabled);
+            client_ = new trace_client::TraceClient(resolveEndpoint(settings), PROGRAM_NAME, version(), KEY, enabled);
         } catch (...) {
             client_ = NULL;
         }
