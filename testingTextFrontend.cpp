@@ -330,10 +330,13 @@ static void testUsageReportingNoticeAndOptOuts() {
 	string home = mkdtemp(pattern);
 	setenv("HOME", home.c_str(), 1);
 	setenv("XDG_CONFIG_HOME", (home + "/.config").c_str(), 1);
+	setenv("XDG_DATA_HOME", (home + "/.local/share").c_str(), 1);
 	setenv(usage_reporting::ENV_ENDPOINT, "http://127.0.0.1:9", 1);
 	unsetenv("TRACE_USAGE_REPORTING");
 	unsetenv("DO_NOT_TRACK");
+	unsetenv("TRACE_INSTALL_ID");
 	string settings = home + "/.config/Simple-Calculator/usage-reporting.conf";
+	string installIdFile = home + "/.local/share/simple-calculator/trace-install-id";
 
 	ostringstream first;
 	{
@@ -385,6 +388,73 @@ static void testUsageReportingNoticeAndOptOuts() {
 	unsetenv("DO_NOT_TRACK");
 	setenv("TRACE_USAGE_REPORTING", "off", 1); // main()'s setting, for anything after
 
+	remove(installIdFile.c_str());
+	remove((home + "/.local/share/simple-calculator").c_str());
+	remove((home + "/.local/share").c_str());
+	remove((home + "/.local").c_str());
+	remove((home + "/.config/Simple-Calculator").c_str());
+	remove((home + "/.config").c_str());
+	remove(home.c_str());
+}
+
+// The installation ID (usageReporting.h, installIdSource()): with reporting on,
+// the client keeps a random UUID in trace-install-id in the data directory
+// (XDG_DATA_HOME/simple-calculator) and reuses it; TRACE_INSTALL_ID is sent
+// instead and leaves the file alone; and a disabled client never creates it.
+static void testUsageReportingInstallId() {
+	char pattern[] = "/tmp/simple-calculator-install-XXXXXX";
+	string home = mkdtemp(pattern);
+	setenv("HOME", home.c_str(), 1);
+	setenv("XDG_CONFIG_HOME", (home + "/.config").c_str(), 1);
+	setenv("XDG_DATA_HOME", (home + "/.local/share").c_str(), 1);
+	setenv(usage_reporting::ENV_ENDPOINT, "http://127.0.0.1:9", 1);
+	unsetenv("TRACE_USAGE_REPORTING");
+	unsetenv("DO_NOT_TRACK");
+	unsetenv("TRACE_INSTALL_ID");
+	string settings = home + "/.config/Simple-Calculator/usage-reporting.conf";
+	string installIdFile = home + "/.local/share/simple-calculator/trace-install-id";
+	assert(usage_reporting::installIdPath() == installIdFile);
+
+	ostringstream out;
+	string id;
+	{
+		usage_reporting::UsageReporter reporter(out);
+		id = reporter.installId();
+	}
+	assert(id.size() == 36);
+	assert(out.str().find(installIdFile) != string::npos);
+	{
+		ifstream in(installIdFile.c_str());
+		string line;
+		getline(in, line);
+		assert(line == id);
+	}
+	{
+		usage_reporting::UsageReporter reporter(out);
+		assert(reporter.installId() == id);
+	}
+
+	remove(installIdFile.c_str());
+	setenv("TRACE_INSTALL_ID", " pinned-id ", 1);
+	{
+		usage_reporting::UsageReporter reporter(out);
+		assert(reporter.installId() == "pinned-id");
+	}
+	assert(!ifstream(installIdFile.c_str()).good());
+	unsetenv("TRACE_INSTALL_ID");
+
+	ofstream(settings.c_str()) << "enabled=false\n";
+	{
+		usage_reporting::UsageReporter reporter(out);
+		assert(reporter.installId().empty());
+	}
+	assert(!ifstream(installIdFile.c_str()).good());
+	setenv("TRACE_USAGE_REPORTING", "off", 1); // main()'s setting, for anything after
+
+	remove(settings.c_str());
+	remove((home + "/.local/share/simple-calculator").c_str());
+	remove((home + "/.local/share").c_str());
+	remove((home + "/.local").c_str());
 	remove((home + "/.config/Simple-Calculator").c_str());
 	remove((home + "/.config").c_str());
 	remove(home.c_str());
@@ -514,6 +584,7 @@ int main() {
 	testDisplayScrolls();
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
+	testUsageReportingInstallId();
 	testUsageReportingSettingsFile();
 	testUsageReportingEndpoint();
 	testUsageReportingVersion();
