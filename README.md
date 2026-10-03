@@ -233,9 +233,10 @@ for known limitations and planned work.
 ## Usage reporting
 
 Both frontends report to [trace](https://trace.danielstephenson.dev) by default:
-one `startup` event per launch, carrying the program name (`Simple-Calculator`)
-and its version from `version.txt`. Nothing about you, your machine, your IP
-address or your calculations is sent.
+one `startup` event per launch, carrying the program name (`Simple-Calculator`),
+its version from `version.txt`, and a random installation ID. Nothing about you,
+your machine or your calculations is sent (the trace server sees the IP address
+of the request, as every web server does).
 
 The first run prints one line saying so on stderr and writes a small settings
 file, `usage-reporting.conf`, to `$XDG_CONFIG_HOME/Simple-Calculator/` (by
@@ -246,6 +247,15 @@ on macOS, `%APPDATA%\Simple-Calculator\` on Windows). To turn reporting off:
 - set `TRACE_USAGE_REPORTING=off` or `DO_NOT_TRACK=1` in the environment (this
   turns it off for every trace-reporting program, and nothing is printed or
   written).
+
+The installation ID is a random UUID, made the first time reporting is on and
+kept in `trace-install-id` in `$XDG_DATA_HOME/simple-calculator/` (by default
+`~/.local/share/simple-calculator/`; `~/Library/Application Support/simple-calculator/`
+on macOS, `%APPDATA%\simple-calculator\` on Windows). It is not derived from
+anything about you or your machine; it only lets trace count installations
+rather than launches. Delete the file to reset it. Setting `TRACE_INSTALL_ID`
+sends that value instead, and the file is left alone. Every opt-out above also
+stops the ID: with reporting off, the file is never created, read or sent.
 
 The event is sent in the background by the vendored
 [trace-client-cpp](https://github.com/Stephenson-Software/trace-client-cpp)
