@@ -23,7 +23,7 @@
 // resets it; TRACE_INSTALL_ID, when set and not blank, is sent instead and the
 // file is left alone. The client only reads or writes the file when reporting
 // is on, so every opt-out above also stops it.
-// Details: https://github.com/Stephenson-Software/trace#usage-reporting
+// Details: https://danielstephenson.dev/usage-reporting
 #ifndef SIMPLE_CALCULATOR_USAGE_REPORTING_H
 #define SIMPLE_CALCULATOR_USAGE_REPORTING_H
 
@@ -52,7 +52,7 @@ static const char *const DEFAULT_ENDPOINT = "https://trace.danielstephenson.dev"
 // it; it is scoped to reporting only and is not a secret (it ships in every
 // copy of the program).
 static const char *const KEY = "tdQFhPb-NfTdMLBHI4zuKDwFoC6_GB7Vwjb8LT4lYhc";
-static const char *const DETAILS_URL = "https://github.com/Stephenson-Software/trace#usage-reporting";
+static const char *const DETAILS_URL = "https://danielstephenson.dev/usage-reporting";
 // Points reporting at another server, e.g. a local stub while testing.
 static const char *const ENV_ENDPOINT = "SIMPLE_CALCULATOR_USAGE_REPORTING_ENDPOINT";
 static const char *const SETTINGS_FILENAME = "usage-reporting.conf";
