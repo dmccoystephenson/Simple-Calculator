@@ -345,7 +345,7 @@ static void testUsageReportingNoticeAndOptOuts() {
 	}
 	assert(first.str().find("Usage reporting is on: Simple-Calculator") != string::npos);
 	assert(first.str().find("TRACE_USAGE_REPORTING=off") != string::npos);
-	assert(first.str().find("https://github.com/Stephenson-Software/trace#usage-reporting") != string::npos);
+	assert(first.str().find("https://danielstephenson.dev/usage-reporting") != string::npos);
 	assert(first.str().find(settings) != string::npos);
 	assert(ifstream(settings.c_str()).good());
 
