@@ -299,6 +299,37 @@ static void testStateSpansLines() {
 	assert(displayAt(runSession("+3=\nq\n"), 1) == "+3_____");
 }
 
+// After a successful '=' the frontend hands the next character straight back
+// to the engine instead of resetting anything itself, so the engine's
+// post-result rules reach the user unchanged: a digit or '.' starts a fresh
+// calculation, an operator continues from the result. CI's smoke test runs two
+// equations in one session but each starts with a digit, so it would pass even
+// if the frontend cleared the engine after printing a result.
+static void testContinueFromResult() {
+	// a digit right after a result replaces it rather than appending to "15"
+	string fresh = runSession("12+3=4\nq\n");
+	assert(contains(fresh, "= 15\n"));
+	assert(displayAt(fresh, 1) == "4______");
+
+	// a '.' right after a result starts a fresh leading-dot literal too
+	assert(displayAt(runSession("12+3=.5\nq\n"), 1) == ".5_____");
+
+	// an operator continues from the result, and a second '=' on the same line
+	// prints a second result line — the README's "after 3 - 10 shows -7,
+	// pressing + 3 = gives -4", typed as one line
+	string continued = runSession("3-10=+3=\nq\n");
+	assert(contains(continued, "= -7\n"));
+	assert(contains(continued, "= -4\n"));
+	assert(continued.find("= -7\n") < continued.find("= -4\n"));
+	assert(displayAt(continued, 1) == "-4_____");
+
+	// the result carries across lines as well: '=' on one line, the operator
+	// that continues from it on the next
+	vector<string> shown = displays(runSession("2*3=\n*2=\nq\n"));
+	assert(shown.at(1) == "6______");
+	assert(shown.at(2) == "12_____");
+}
+
 // The display is a window onto the *end* of the equation, so a long equation
 // scrolls rather than dropping characters in the middle. The engine owns this
 // rule; the check here is that the text frontend renders the window it is given
@@ -581,6 +612,7 @@ int main() {
 	testQuit();
 	testEndOfInputTerminates();
 	testStateSpansLines();
+	testContinueFromResult();
 	testDisplayScrolls();
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
