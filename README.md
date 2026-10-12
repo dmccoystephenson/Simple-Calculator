@@ -125,17 +125,30 @@ are interchangeable:
 | `+`, `-`, `*`, `/` (number row or keypad) | enter an operator |
 | `.` | enter a decimal point |
 | `=`, `Enter` (Return or keypad) | evaluate |
-| `c`, `Escape`, `Delete` | clear |
+| `c` (or `C`), `Escape`, `Delete` | clear |
 
 Any other key is ignored. There is no key that deletes a single character —
 `c`/`Escape`/`Delete` clear the whole equation, matching the on-screen `clear`
 button, which is the only erase the engine offers.
 
 The text/CLI frontend runs in a terminal — type digits, `.`, and `+ - * /`, then
-`=` to evaluate, `c` to clear, `q` to quit:
+`=` to evaluate, `c` (or `C`) to clear, `q` (or `Q`) to quit:
 
 ```sh
 ./textCalculator
+```
+
+Input is read a line at a time, and the 7 display slots are printed after each
+line (`_` marks an empty slot). The equation carries over from one line to the
+next, so it can be built across several lines. A successful `=` prints the
+result as the display shows it (`= 15`); a failed one prints
+`(invalid equation)` and leaves the equation as it was. Any other character,
+including spaces, is ignored silently. `q` quits the moment it is read, and the
+rest of that line is never processed; reaching the end of input (a closed pipe
+or `Ctrl-D`) quits too, which is what lets it be driven from a script:
+
+```sh
+printf '12+3=\nq\n' | ./textCalculator
 ```
 
 ## Tests
