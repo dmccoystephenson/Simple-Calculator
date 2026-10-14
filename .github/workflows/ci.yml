@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install -y libsdl2-dev libsdl2-image-dev
 
       # Builds every frontend/target via the Makefile (SDL GUI, text CLI, and the
-      # two test runners), each linking the shared CalculatorEngine — this is the
+      # three test runners), each linking the shared CalculatorEngine — this is the
       # first place simpleCalculator.cpp is compiled and linked against SDL2. CI
       # overrides CXXFLAGS to add -Werror so new warnings fail the build, while a
       # local `make` stays non-fatal (Makefile keeps -Wall -Wextra).
