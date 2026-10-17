@@ -207,6 +207,14 @@ number) is rejected as malformed. Division is true division, not truncated —
 equation is: the GUI leaves the display unchanged, and the text frontend
 prints `(invalid equation)`.
 
+A successful `=` replaces the equation with its result, and what is typed next
+decides what happens to it. An operator continues from the result — `2*3=`
+shows `6`, and `*2=` then gives `12`. A digit or `.` starts a new calculation
+in its place instead — `12+3=` shows `15`, and typing `4` leaves just `4`, not
+`154`. Pressing `=` again with nothing new typed evaluates the result itself,
+so the same value stays on the display; the last operation is not repeated the
+way some calculators do.
+
 A `-` typed where a value is expected is a sign rather than a subtraction, so a
 negative number can be entered directly (`-` then `7` evaluates to `-7`) and a
 calculation can continue from a negative result — after `3 - 10` shows `-7`,

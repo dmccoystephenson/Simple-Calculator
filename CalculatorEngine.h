@@ -56,7 +56,7 @@ class CalculatorEngine {
 
 	std::string equation;
 	char slots[SLOT_COUNT];
-	bool justEvaluated; // true right after evaluate(): the next digit starts fresh
+	bool justEvaluated; // true right after evaluate(): the next digit or '.' starts fresh
 };
 
 #endif
