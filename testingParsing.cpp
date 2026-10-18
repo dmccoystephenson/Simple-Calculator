@@ -475,6 +475,38 @@ static void testEngineInput() {
 	engine.inputDigit(5);
 	assert(engine.equationText() == ".5");
 
+	// the fresh start runs *before* the one-'.'-per-number check, so a '.' right
+	// after a result that already contains one is not rejected as a second '.'
+	// in "0.25" — it opens a new leading-dot literal. The result above ("5")
+	// has no '.', so it cannot tell the two orderings apart
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputOperator('/');
+	engine.inputDigit(4);
+	assert(engine.evaluate(result) && result == 0.25);
+	engine.inputDecimalPoint();
+	assert(engine.equationText() == ".");
+	assert(displayString(engine) == ".______");
+	engine.inputDigit(5);
+	assert(engine.equationText() == ".5");
+
+	// input the engine ignores does not count as "what is typed next": an
+	// out-of-range digit or an unsupported operator right after a result
+	// leaves both the result and the just-evaluated state alone, so the next
+	// real digit still starts fresh instead of appending to "15"
+	engine.clear();
+	engine.inputDigit(1);
+	engine.inputDigit(2);
+	engine.inputOperator('+');
+	engine.inputDigit(3);
+	assert(engine.evaluate(result) && result == 15);
+	engine.inputDigit(42);     // ignored: out of range, rejected before the fresh start
+	engine.inputOperator('%'); // ignored: does not clear the just-evaluated state
+	assert(engine.equationText() == "15");
+	assert(displayString(engine) == "15_____");
+	engine.inputDigit(4);
+	assert(engine.equationText() == "4");
+
 	// a negative result displays with a leading '-' (the sign counts against
 	// the 7-slot budget, same as formatForDisplay documents)
 	engine.clear();
