@@ -239,6 +239,20 @@ static void testEvaluateFailurePrintsDiagnostic() {
 	assert(contains(runSession("5---3=\nq\n"), "(invalid equation)\n"));
 }
 
+// A failed '=' prints its diagnostic and then carries on with the rest of the
+// line, just as a successful one does — it does not end the line or discard
+// what follows. Every check above puts the failing '=' last on its line, so
+// none of them would notice a frontend that stopped reading the line there.
+static void testFailedEvaluateContinuesLine() {
+	// "2+" fails, the "3" that follows repairs it, and the second '=' succeeds
+	string out = runSession("2+=3=\nq\n");
+	assert(contains(out, "(invalid equation)\n"));
+	assert(contains(out, "= 5\n"));
+	assert(out.find("(invalid equation)\n") < out.find("= 5\n"));
+	assert(displays(out).size() == 2); // still one display for the one line
+	assert(displayAt(out, 1) == "5______");
+}
+
 // 'c' resets the equation; the uppercase form is bound too, and neither prints
 // anything of its own.
 static void testClear() {
@@ -283,6 +297,27 @@ static void testEndOfInputTerminates() {
 
 	// empty input is a session that reads nothing and renders once
 	assert(displays(runSession("")).size() == 1);
+}
+
+// The display is printed once per line consumed, and a blank line counts: it
+// re-renders the display unchanged rather than being skipped. A Windows line
+// ending changes nothing either — getline() splits on '\n' alone, so the '\r'
+// of "\r\n" reaches the dispatch as an ordinary character and is ignored like
+// any other unbound one. That is what lets a script saved with CRLF endings be
+// piped in and produce exactly the session its LF twin would.
+static void testBlankAndCrlfLines() {
+	vector<string> shown = displays(runSession("12\n\n+3\nq\n"));
+	assert(shown.size() == 4); // startup, then one per line — the blank one too
+	assert(shown.at(1) == "12_____");
+	assert(shown.at(2) == "12_____"); // the blank line, rendered again as it was
+	assert(shown.at(3) == "12+3___");
+
+	// byte-for-byte the same session, including continuing from a result on
+	// the next line (a '\r' after '=' must not disturb the just-evaluated state)
+	string crlf = runSession("12+3=\r\n*2=\r\nq\r\n");
+	assert(crlf == runSession("12+3=\n*2=\nq\n"));
+	assert(contains(crlf, "= 15\n"));
+	assert(contains(crlf, "= 30\n"));
 }
 
 // Engine state belongs to the session, not to the line, so an equation can be
@@ -608,9 +643,11 @@ int main() {
 	testEvaluateSuccess();
 	testPrintsDisplayTextNotRawDouble();
 	testEvaluateFailurePrintsDiagnostic();
+	testFailedEvaluateContinuesLine();
 	testClear();
 	testQuit();
 	testEndOfInputTerminates();
+	testBlankAndCrlfLines();
 	testStateSpansLines();
 	testContinueFromResult();
 	testDisplayScrolls();

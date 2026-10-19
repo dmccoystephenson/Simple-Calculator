@@ -139,11 +139,13 @@ The text/CLI frontend runs in a terminal — type digits, `.`, and `+ - * /`, th
 ```
 
 Input is read a line at a time, and the 7 display slots are printed after each
-line (`_` marks an empty slot). The equation carries over from one line to the
-next, so it can be built across several lines. A successful `=` prints the
-result as the display shows it (`= 15`); a failed one prints
-`(invalid equation)` and leaves the equation as it was. Any other character,
-including spaces, is ignored silently. `q` quits the moment it is read, and the
+line, a blank one included (`_` marks an empty slot). The equation carries over
+from one line to the next, so it can be built across several lines. A
+successful `=` prints the result as the display shows it (`= 15`); a failed one
+prints `(invalid equation)` and leaves the equation as it was. Either way the
+rest of the line is still read, so `2+=3=` reports the error and then `= 5`.
+Any other character, including spaces and the `\r` of a Windows (CRLF) line
+ending, is ignored silently. `q` quits the moment it is read, and the
 rest of that line is never processed; reaching the end of input (a closed pipe
 or `Ctrl-D`) quits too, which is what lets it be driven from a script:
 
