@@ -200,6 +200,71 @@ static void testAllAssetsLoad() {
 	assert(equalsSign.currentTexture == equalsT);
 }
 
+// loadMedia() detects a missing asset only because loadTexture() reports one as
+// NULL rather than handing back a texture that draws nothing; the checks above
+// cover the success path, this covers the failure path they depend on. (The
+// expected IMG_Load error is printed to stderr — that is loadTexture's own
+// diagnostic, not a test failure.)
+static void testLoadTextureFailure() {
+	assert(loadTexture("no-such-asset.png") == NULL);
+	// a file that exists but is not an image fails the same way
+	assert(loadTexture("Makefile") == NULL);
+}
+
+// The hit test in Button::handleEvent() is only half of where a click lands; the
+// other half is the layout init() chooses. These checks pin that layout's
+// properties rather than its coordinates, so the buttons can be moved freely
+// as long as every one stays reachable and unambiguous.
+static void testButtonLayout() {
+	// every button is drawn entirely inside the window, so each pixel of it can
+	// actually be clicked (a button hanging off an edge would be partly or wholly
+	// unreachable, with nothing else reporting it)
+	for (Button* button : allButtons) {
+		assert(button->width > 0 && button->height > 0);
+		assert(button->xpos >= 0 && button->ypos >= 0);
+		assert(button->xpos + button->width <= SCREEN_WIDTH);
+		assert(button->ypos + button->height <= SCREEN_HEIGHT);
+	}
+
+	// no two buttons overlap — not even a display slot and a clickable one — so
+	// one press can never dispatch two ids and no glyph is drawn over another.
+	// Rectangles are half-open, matching the hit test: buttons that merely touch
+	// (the display slots sit edge to edge) do not overlap.
+	for (size_t a = 0; a < allButtons.size(); a++) {
+		for (size_t b = a + 1; b < allButtons.size(); b++) {
+			const Button& p = *allButtons[a];
+			const Button& q = *allButtons[b];
+			bool separate = p.xpos + p.width <= q.xpos || q.xpos + q.width <= p.xpos ||
+			                p.ypos + p.height <= q.ypos || q.ypos + q.height <= p.ypos;
+			assert(separate);
+		}
+	}
+
+	// clicking each button's centre has exactly the effect of dispatching that
+	// button's own id once. Every button starts from "6+2", from which each id
+	// leaves a different equation ("6+21", "6+2-", …, "" for clear, "8" for
+	// equals), so a click that reached the wrong button, or a second one, could
+	// not produce the expected text by coincidence.
+	vector<string> outcomes;
+	for (Button* button : clickableButtons) {
+		changeDisplay(clear.id);
+		type("6+2");
+		changeDisplay(button->id);
+		string expected = engine.equationText();
+
+		changeDisplay(clear.id);
+		type("6+2");
+		handleButtonEvents(clickCentre(*button));
+		assert(engine.equationText() == expected);
+
+		for (const string& seen : outcomes) {
+			assert(seen != expected); // the starting state really does tell them apart
+		}
+		outcomes.push_back(expected);
+	}
+	assert(outcomes.size() == clickableButtons.size());
+}
+
 // The keyboard reaches the engine by first resolving a character to a button
 // id, so a key press and a click on the same button run the identical dispatch.
 static void testButtonIdForChar() {
@@ -529,6 +594,8 @@ int main() {
 
 	testButtonIdsAssignedByInit();
 	testAllAssetsLoad();
+	testLoadTextureFailure();
+	testButtonLayout();
 	testButtonIdForChar();
 	testChangeDisplayDispatch();
 	testTextInputEvents();
