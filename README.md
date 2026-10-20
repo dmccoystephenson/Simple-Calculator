@@ -169,8 +169,8 @@ make test       # rebuilds first if sources changed
 
 `testingFrontend` covers the part of the GUI that is logic rather than pixels —
 which SDL event maps to which button id, which id maps to which engine call,
-where a click counts as landing on a button, and which texture ends up in each
-display slot. It selects SDL's dummy video driver and software renderer itself,
+where a click counts as landing on a button (every button lies inside the window
+and no two overlap), and which texture ends up in each display slot. It selects SDL's dummy video driver and software renderer itself,
 so it needs SDL2 but never a window, a GPU, or a display server. It does load
 the real PNG assets, which is what makes a missing or renamed one a test
 failure, so — like the GUI itself — **run it from the repository directory**.
