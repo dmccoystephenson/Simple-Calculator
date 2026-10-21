@@ -188,6 +188,12 @@ static void testEvaluateSuccess() {
 	// dispatched into: 5.5*2 is 11, and the whole-number result sheds the
 	// fractional part entirely
 	assert(contains(runSession("5.5*2=\nq\n"), "= 11\n"));
+
+	// a second '.' in the same number is dropped at input, not carried into
+	// the equation to fail at '=': README.md's "typing 2.3.4= gives 2.34"
+	string secondDot = runSession("2.3.4=\nq\n");
+	assert(contains(secondDot, "= 2.34\n"));
+	assert(!contains(secondDot, "(invalid equation)"));
 }
 
 // The frontend prints engine.equationText() — the formatted *display* text —
