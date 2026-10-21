@@ -203,9 +203,10 @@ enabled.
 floating-point (decimal) values.
 
 A number literal may include at most one decimal point — `2.5`, `.5`, and `2.`
-are all valid ways to enter a value, while `2.3.4` (a second `.` in the same
-number) is rejected as malformed. Division is true division, not truncated —
-`7/2` is `3.5`. Dividing by zero is rejected the same way any other malformed
+are all valid ways to enter a value. A second `.` typed within the same number
+is ignored rather than reported, so typing `2.3.4=` gives `2.34`; a `.` after an
+operator starts a new number and is accepted again (`1.2+.5`). Division is
+true division, not truncated — `7/2` is `3.5`. Dividing by zero is rejected the same way any other malformed
 equation is: the GUI leaves the display unchanged, and the text frontend
 prints `(invalid equation)`.
 
