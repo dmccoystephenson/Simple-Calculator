@@ -111,8 +111,9 @@ static void testParser() {
 	assert(!parseEquation("-" + nearMaxDigits + "-" + nearMaxDigits, result)); // difference overflows toward -infinity
 	assert(!parseEquation(nearMaxDigits + "/.1", result));              // a quotient can overflow without a zero divisor
 	// an intermediate result that overflows fails the whole equation even when
-	// the exact final value (1e200 here) would fit in a double: the infinity is
-	// rejected where it is produced instead of flowing into the next operator
+	// the exact final value (1e200 here) would fit in a double: evaluation is
+	// in doubles, left to right, so the product is already infinite before the
+	// '/' runs, and dividing it brings it back no closer to finite
 	assert(!parseEquation(bigDigits + "*" + bigDigits + "/" + bigDigits, result));
 	// a product that is merely enormous, not infinite, is a parser success:
 	// rejecting a value too large to show is the display layer's job, not the
