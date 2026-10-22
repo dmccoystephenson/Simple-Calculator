@@ -96,7 +96,25 @@ static void testParser() {
 	// overflow to a non-finite value is rejected rather than wrapping
 	string hugeDigits(400, '9');
 	assert(!parseEquation(hugeDigits, result));                       // literal overflows to infinity
-	assert(!parseEquation(hugeDigits + "*" + hugeDigits, result));    // product overflows to infinity
+	assert(!parseEquation(hugeDigits + "*" + hugeDigits, result));    // still caught at the literal, before the '*'
+	// overflow produced by an operator, from literals that are finite on their
+	// own. The 400-digit cases above never reach an operator — each literal is
+	// already infinite and is rejected where it is read — so these are what pin
+	// the check on every operator's result. 200 nines is about 1e200, and 308
+	// nines about 1e308, just under the largest finite double (~1.8e308).
+	string bigDigits(200, '9');
+	string nearMaxDigits(308, '9');
+	assert(parseEquation(bigDigits, result) && result > 1e199);         // finite on its own...
+	assert(parseEquation(nearMaxDigits, result) && result > 1e307);     // ...and so is this
+	assert(!parseEquation(bigDigits + "*" + bigDigits, result));        // product overflows (~1e400)
+	assert(!parseEquation(nearMaxDigits + "+" + nearMaxDigits, result)); // sum overflows (~2e308)
+	assert(!parseEquation("-" + nearMaxDigits + "-" + nearMaxDigits, result)); // difference overflows toward -infinity
+	assert(!parseEquation(nearMaxDigits + "/.1", result));              // a quotient can overflow without a zero divisor
+	// an intermediate result that overflows fails the whole equation even when
+	// the exact final value (1e200 here) would fit in a double: evaluation is
+	// in doubles, left to right, so the product is already infinite before the
+	// '/' runs, and dividing it brings it back no closer to finite
+	assert(!parseEquation(bigDigits + "*" + bigDigits + "/" + bigDigits, result));
 	// a product that is merely enormous, not infinite, is a parser success:
 	// rejecting a value too large to show is the display layer's job, not the
 	// parser's (see the matching engine-level case in testEngineInput)
