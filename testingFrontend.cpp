@@ -505,6 +505,47 @@ static void testClickDispatch() {
 	assert(engine.equationText() == "");
 }
 
+// main() offers every polled event to both handleButtonEvents() and
+// handleKeyboardEvents(), so each must ignore the events the other one owns —
+// and both must ignore events neither owns. Without that, one key press or click
+// could reach the engine twice. Every case below starts from an equation each
+// stray dispatch would visibly change ("9+1" becomes "10" on '=', "" on clear).
+static void testHandlersIgnoreOtherEvents() {
+	// keyboard events offered to the click handler do nothing, even the ones the
+	// keyboard handler binds
+	changeDisplay(clear.id);
+	type("9+1");
+	handleButtonEvents(textEvent("="));
+	handleButtonEvents(textEvent("c"));
+	handleButtonEvents(keyEvent(SDLK_RETURN));
+	handleButtonEvents(keyEvent(SDLK_ESCAPE));
+	assert(engine.equationText() == "9+1");
+
+	// a left press offered to the keyboard handler does nothing either, even when
+	// it lands on the equals and clear buttons
+	handleKeyboardEvents(clickCentre(equalsSign));
+	handleKeyboardEvents(clickCentre(clear));
+	assert(engine.equationText() == "9+1");
+
+	// only the key press is bound, not its release: SDL delivers both, and a
+	// bound key-up would evaluate or clear a second time
+	SDL_Event release = keyEvent(SDLK_RETURN);
+	release.type = SDL_KEYUP;
+	handleKeyboardEvents(release);
+	release.key.keysym.sym = SDLK_ESCAPE;
+	handleKeyboardEvents(release);
+	assert(engine.equationText() == "9+1");
+
+	// the quit request main() checks for itself reaches both handlers as well,
+	// and neither acts on it
+	SDL_Event quit;
+	SDL_zero(quit);
+	quit.type = SDL_QUIT;
+	handleButtonEvents(quit);
+	handleKeyboardEvents(quit);
+	assert(engine.equationText() == "9+1");
+}
+
 // The rendering side: the engine's display characters become slot textures.
 static void testDisplayRendering() {
 	assert(textureForChar('0') == digitTextures[0]);
@@ -601,6 +642,7 @@ int main() {
 	testTextInputEvents();
 	testKeyDownEvents();
 	testClickDispatch();
+	testHandlersIgnoreOtherEvents();
 	testDisplayRendering();
 
 	close();
