@@ -532,6 +532,63 @@ static void testUsageReportingInstallId() {
 	remove(home.c_str());
 }
 
+// Where the settings file and the installation ID live (configDirectory() and
+// dataDirectory()). The two tests above point XDG_CONFIG_HOME and XDG_DATA_HOME
+// at exactly the paths the HOME fallback would produce, so neither can tell
+// whether the variable was read or the fallback was taken — and the defaults the
+// README names (~/.config/Simple-Calculator/, ~/.local/share/simple-calculator/)
+// were never reached at all. Here HOME and each XDG variable get unrelated
+// values, so whichever one a path came from shows in the path. These are pure
+// string functions, so nothing is created on disk. Only the XDG branch is
+// checked: Windows and macOS resolve from APPDATA and HOME instead.
+static void testUsageReportingPaths() {
+#if !defined(_WIN32) && !defined(__APPLE__)
+	setenv("HOME", "/home/sentinel", 1);
+
+	// the XDG variables win over HOME when set
+	setenv("XDG_CONFIG_HOME", "/xdg/config", 1);
+	setenv("XDG_DATA_HOME", "/xdg/data", 1);
+	assert(usage_reporting::settingsPath() == "/xdg/config/Simple-Calculator/usage-reporting.conf");
+	assert(usage_reporting::installIdPath() == "/xdg/data/simple-calculator/trace-install-id");
+
+	// unset, they fall back to the README's defaults under HOME — note the
+	// settings directory keeps the program's capitalization and the data
+	// directory is lowercased
+	unsetenv("XDG_CONFIG_HOME");
+	unsetenv("XDG_DATA_HOME");
+	assert(usage_reporting::configDirectory() == "/home/sentinel/.config/Simple-Calculator");
+	assert(usage_reporting::settingsPath() == "/home/sentinel/.config/Simple-Calculator/usage-reporting.conf");
+	assert(usage_reporting::dataDirectory() == "/home/sentinel/.local/share/simple-calculator");
+	assert(usage_reporting::installIdPath() == "/home/sentinel/.local/share/simple-calculator/trace-install-id");
+
+	// set but empty is treated as unset, as the XDG spec requires, rather than
+	// producing a path relative to the working directory ("/Simple-Calculator")
+	setenv("XDG_CONFIG_HOME", "", 1);
+	setenv("XDG_DATA_HOME", "", 1);
+	assert(usage_reporting::settingsPath() == "/home/sentinel/.config/Simple-Calculator/usage-reporting.conf");
+	assert(usage_reporting::installIdPath() == "/home/sentinel/.local/share/simple-calculator/trace-install-id");
+
+	// with no HOME either there is nowhere to put the files, and both paths are
+	// empty — which readSettings("") and installIdSource() treat as "no file"
+	// rather than as a file named ""
+	unsetenv("XDG_CONFIG_HOME");
+	unsetenv("XDG_DATA_HOME");
+	unsetenv("HOME");
+	assert(usage_reporting::configDirectory().empty());
+	assert(usage_reporting::settingsPath().empty());
+	assert(usage_reporting::dataDirectory().empty());
+	assert(usage_reporting::installIdPath().empty());
+
+	// an XDG variable alone is enough without HOME
+	setenv("XDG_CONFIG_HOME", "/xdg/config", 1);
+	setenv("XDG_DATA_HOME", "/xdg/data", 1);
+	assert(usage_reporting::settingsPath() == "/xdg/config/Simple-Calculator/usage-reporting.conf");
+	assert(usage_reporting::installIdPath() == "/xdg/data/simple-calculator/trace-install-id");
+	unsetenv("XDG_CONFIG_HOME");
+	unsetenv("XDG_DATA_HOME");
+#endif
+}
+
 // The settings file is parsed by readSettings(), which is a pure function of
 // the file's text, so it is checked directly rather than through a reporter
 // (whose endpoint is not observable from outside the client). These cases pin
@@ -660,6 +717,7 @@ int main() {
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
 	testUsageReportingInstallId();
+	testUsageReportingPaths();
 	testUsageReportingSettingsFile();
 	testUsageReportingEndpoint();
 	testUsageReportingVersion();
