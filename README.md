@@ -184,7 +184,8 @@ assets, so it can run anywhere the engine builds. It also covers usage
 reporting: the first-run notice and settings file, the quiet later runs, and
 the `enabled=false`, `TRACE_USAGE_REPORTING=off`, and `DO_NOT_TRACK=1`
 opt-outs, where the settings file and installation ID live with and without
-`XDG_CONFIG_HOME`/`XDG_DATA_HOME` set, how a hand-edited settings file is
+`XDG_CONFIG_HOME`/`XDG_DATA_HOME` set, what happens when the settings file
+cannot be written, how a hand-edited settings file is
 read, which endpoint wins when both the environment variable and `endpoint=`
 are set, and that the reported
 version matches `version.txt`, with `HOME` pointed at a temporary directory and
@@ -267,7 +268,10 @@ of the request, as every web server does).
 The first run prints one line saying so on stderr and writes a small settings
 file, `usage-reporting.conf`, to `$XDG_CONFIG_HOME/Simple-Calculator/` (by
 default `~/.config/Simple-Calculator/`; `~/Library/Application Support/Simple-Calculator/`
-on macOS, `%APPDATA%\Simple-Calculator\` on Windows). To turn reporting off:
+on macOS, `%APPDATA%\Simple-Calculator\` on Windows). That file is the only
+record that the line was shown, so if it cannot be written (there is no home
+directory, or the folder cannot be created) reporting stays on and the line is
+printed again on every run. To turn reporting off:
 
 - set `enabled=false` (or `off`, `no`, `0`, in any case) in that file, or
 - set `TRACE_USAGE_REPORTING=off` or `DO_NOT_TRACK=1` in the environment (this

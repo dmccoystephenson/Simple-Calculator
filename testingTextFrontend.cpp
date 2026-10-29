@@ -589,6 +589,77 @@ static void testUsageReportingPaths() {
 #endif
 }
 
+// What a reporter does when the settings file cannot be written: either there
+// is no home to put it in (settingsPath() is empty), or its directory cannot be
+// created — here because XDG_CONFIG_HOME and XDG_DATA_HOME sit beneath a regular
+// file, which defeats mkdir for root too, so the case holds in CI and in a
+// container alike. Every other usage-reporting test has a writable home, so
+// none of them reaches the branch of UsageReporter's constructor that skips the
+// write. These checks characterize current behavior: reporting stays on (an
+// unwritable home is not an opt-out), and since the settings file is the only
+// record that the notice was shown, the notice is printed again on every run.
+static void testUsageReportingNowhereToWrite() {
+#if !defined(_WIN32) && !defined(__APPLE__)
+	setenv(usage_reporting::ENV_ENDPOINT, "http://127.0.0.1:9", 1);
+	unsetenv("TRACE_USAGE_REPORTING");
+	unsetenv("DO_NOT_TRACK");
+	unsetenv("TRACE_INSTALL_ID");
+
+	// no HOME and no XDG variables: there is no path at all, so the notice
+	// falls back to naming "the settings file" and the ID file by its bare
+	// name, and the client is given no ID file, so no install tag is sent
+	string savedHome = usage_reporting::environment("HOME");
+	unsetenv("HOME");
+	unsetenv("XDG_CONFIG_HOME");
+	unsetenv("XDG_DATA_HOME");
+	for (int run = 0; run < 2; run++) {
+		ostringstream out;
+		{
+			usage_reporting::UsageReporter reporter(out);
+			assert(reporter.isEnabled());
+			assert(reporter.installId().empty());
+		}
+		assert(out.str().find("Usage reporting is on: Simple-Calculator") != string::npos);
+		assert(out.str().find("enabled=false in the settings file,") != string::npos);
+		assert(out.str().find("kept in trace-install-id)") != string::npos);
+	}
+
+	// a home whose config and data directories cannot be created: the notice
+	// still names the intended path, nothing is written there, and the next
+	// run prints it again. The client falls back to an ID that lives only in
+	// memory, so each run reports a different one (36 characters, a UUID).
+	char pattern[] = "/tmp/simple-calculator-blocked-XXXXXX";
+	string directory = mkdtemp(pattern);
+	string blocker = directory + "/not-a-directory";
+	ofstream(blocker.c_str()) << "a regular file where a directory is needed\n";
+	setenv("XDG_CONFIG_HOME", (blocker + "/config").c_str(), 1);
+	setenv("XDG_DATA_HOME", (blocker + "/data").c_str(), 1);
+	string settings = blocker + "/config/Simple-Calculator/usage-reporting.conf";
+	assert(usage_reporting::settingsPath() == settings);
+	string ids[2];
+	for (int run = 0; run < 2; run++) {
+		ostringstream out;
+		{
+			usage_reporting::UsageReporter reporter(out);
+			assert(reporter.isEnabled());
+			ids[run] = reporter.installId();
+		}
+		assert(out.str().find("Usage reporting is on: Simple-Calculator") != string::npos);
+		assert(out.str().find("enabled=false in " + settings + ",") != string::npos);
+		assert(!ifstream(settings.c_str()).good());
+		assert(ids[run].size() == 36);
+	}
+	assert(ids[0] != ids[1]);
+
+	unsetenv("XDG_CONFIG_HOME");
+	unsetenv("XDG_DATA_HOME");
+	if (!savedHome.empty()) setenv("HOME", savedHome.c_str(), 1);
+	setenv("TRACE_USAGE_REPORTING", "off", 1); // main()'s setting, for anything after
+	remove(blocker.c_str());
+	remove(directory.c_str());
+#endif
+}
+
 // The settings file is parsed by readSettings(), which is a pure function of
 // the file's text, so it is checked directly rather than through a reporter
 // (whose endpoint is not observable from outside the client). These cases pin
@@ -718,6 +789,7 @@ int main() {
 	testUsageReportingNoticeAndOptOuts();
 	testUsageReportingInstallId();
 	testUsageReportingPaths();
+	testUsageReportingNowhereToWrite();
 	testUsageReportingSettingsFile();
 	testUsageReportingEndpoint();
 	testUsageReportingVersion();
