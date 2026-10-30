@@ -183,7 +183,9 @@ dispatch as shipped rather than a copy of it. It needs neither SDL nor the PNG
 assets, so it can run anywhere the engine builds. It also covers usage
 reporting: the first-run notice and settings file, the quiet later runs, and
 the `enabled=false`, `TRACE_USAGE_REPORTING=off`, and `DO_NOT_TRACK=1`
-opt-outs, where the settings file and installation ID live with and without
+opt-outs (each of which also stops the installation ID, a pinned
+`TRACE_INSTALL_ID` included), a blank `TRACE_INSTALL_ID` falling back to the
+ID file, where the settings file and installation ID live with and without
 `XDG_CONFIG_HOME`/`XDG_DATA_HOME` set, what happens when the settings file
 cannot be written, how a hand-edited settings file is
 read, which endpoint wins when both the environment variable and `endpoint=`
