@@ -532,6 +532,130 @@ static void testUsageReportingInstallId() {
 	remove(home.c_str());
 }
 
+// The README promises that *every* opt-out stops the installation ID — "the file
+// is never created, read or sent" — but testUsageReportingInstallId only reaches
+// enabled=false. The two environment opt-outs take a different branch of the
+// client's constructor (checked before the settings file is even read), so each
+// is pinned here on its own: with no ID file yet, none is created; with one
+// already on disk, it is not read (installId() stays empty, so no install tag
+// could be sent); and a pinned TRACE_INSTALL_ID is not sent either — nor under
+// enabled=false, which the test above checks only against the file. Last, a
+// TRACE_INSTALL_ID that is set but blank counts as unset (installIdSource()'s
+// "set and not blank"), so the file is used rather than an empty ID.
+static void testUsageReportingInstallIdOptOuts() {
+	char pattern[] = "/tmp/simple-calculator-install-optout-XXXXXX";
+	string home = mkdtemp(pattern);
+	setenv("HOME", home.c_str(), 1);
+	setenv("XDG_CONFIG_HOME", (home + "/.config").c_str(), 1);
+	setenv("XDG_DATA_HOME", (home + "/.local/share").c_str(), 1);
+	setenv(usage_reporting::ENV_ENDPOINT, "http://127.0.0.1:9", 1);
+	unsetenv("TRACE_USAGE_REPORTING");
+	unsetenv("DO_NOT_TRACK");
+	unsetenv("TRACE_INSTALL_ID");
+	string settings = home + "/.config/Simple-Calculator/usage-reporting.conf";
+	string installIdFile = home + "/.local/share/simple-calculator/trace-install-id";
+
+	struct OptOut {
+		const char* name;
+		const char* value;
+	};
+	const OptOut optOuts[] = {
+		{"TRACE_USAGE_REPORTING", "off"},
+		{"DO_NOT_TRACK", "1"},
+	};
+	ostringstream out;
+	for (const OptOut& optOut : optOuts) {
+		setenv(optOut.name, optOut.value, 1);
+
+		// no ID file yet: none is made up, and none is written
+		assert(!ifstream(installIdFile.c_str()).good());
+		{
+			usage_reporting::UsageReporter reporter(out);
+			assert(reporter.disabledReason() == "environment");
+			assert(reporter.installId().empty());
+		}
+		assert(!ifstream(installIdFile.c_str()).good());
+
+		// an ID already on disk is left unread, so it is not sent either; a
+		// sentinel that is a valid ID shows the file was skipped, not rejected
+		assert(usage_reporting::makeDirectories(usage_reporting::dataDirectory()));
+		ofstream(installIdFile.c_str()) << "sentinel-install-id\n";
+		assert(ifstream(installIdFile.c_str()).good());
+		{
+			usage_reporting::UsageReporter reporter(out);
+			assert(reporter.installId().empty());
+		}
+		{
+			ifstream in(installIdFile.c_str());
+			string line;
+			getline(in, line);
+			assert(line == "sentinel-install-id"); // untouched
+		}
+
+		// a pinned ID is an ID like any other: an opt-out stops it too
+		setenv("TRACE_INSTALL_ID", "pinned-id", 1);
+		{
+			usage_reporting::UsageReporter reporter(out);
+			assert(reporter.installId().empty());
+		}
+		unsetenv("TRACE_INSTALL_ID");
+
+		remove(installIdFile.c_str());
+		unsetenv(optOut.name);
+	}
+	// neither opt-out printed the first-run notice or wrote the settings file
+	assert(out.str().empty());
+	assert(!ifstream(settings.c_str()).good());
+
+	// the settings-file opt-out stops a pinned ID the same way (the test above
+	// only reaches enabled=false with the ID file, not with TRACE_INSTALL_ID)
+	assert(usage_reporting::makeDirectories(usage_reporting::configDirectory()));
+	ofstream(settings.c_str()) << "enabled=false\n";
+	setenv("TRACE_INSTALL_ID", "pinned-id", 1);
+	{
+		usage_reporting::UsageReporter reporter(out);
+		assert(reporter.disabledReason() == "config");
+		assert(reporter.installId().empty());
+	}
+	unsetenv("TRACE_INSTALL_ID");
+	remove(settings.c_str());
+
+	// with reporting on, a blank TRACE_INSTALL_ID falls through to the file
+	// instead of being sent as an empty (or whitespace) ID: the file is read
+	// when it exists, and created when it does not
+	setenv("TRACE_INSTALL_ID", " \t", 1);
+	ofstream(installIdFile.c_str()) << "sentinel-install-id\n";
+	{
+		usage_reporting::UsageReporter reporter(out);
+		assert(reporter.installId() == "sentinel-install-id");
+	}
+	remove(installIdFile.c_str());
+	setenv("TRACE_INSTALL_ID", "", 1);
+	string created;
+	{
+		usage_reporting::UsageReporter reporter(out);
+		created = reporter.installId();
+	}
+	assert(created.size() == 36);
+	{
+		ifstream in(installIdFile.c_str());
+		string line;
+		getline(in, line);
+		assert(line == created);
+	}
+	unsetenv("TRACE_INSTALL_ID");
+	setenv("TRACE_USAGE_REPORTING", "off", 1); // main()'s setting, for anything after
+
+	remove(installIdFile.c_str());
+	remove(settings.c_str());
+	remove((home + "/.local/share/simple-calculator").c_str());
+	remove((home + "/.local/share").c_str());
+	remove((home + "/.local").c_str());
+	remove((home + "/.config/Simple-Calculator").c_str());
+	remove((home + "/.config").c_str());
+	remove(home.c_str());
+}
+
 // Where the settings file and the installation ID live (configDirectory() and
 // dataDirectory()). The two tests above point XDG_CONFIG_HOME and XDG_DATA_HOME
 // at exactly the paths the HOME fallback would produce, so neither can tell
@@ -788,6 +912,7 @@ int main() {
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
 	testUsageReportingInstallId();
+	testUsageReportingInstallIdOptOuts();
 	testUsageReportingPaths();
 	testUsageReportingNowhereToWrite();
 	testUsageReportingSettingsFile();
