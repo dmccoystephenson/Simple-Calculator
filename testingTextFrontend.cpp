@@ -538,7 +538,8 @@ static void testUsageReportingInstallId() {
 // client's constructor (checked before the settings file is even read), so each
 // is pinned here on its own: with no ID file yet, none is created; with one
 // already on disk, it is not read (installId() stays empty, so no install tag
-// could be sent); and a pinned TRACE_INSTALL_ID is not sent either. Last, a
+// could be sent); and a pinned TRACE_INSTALL_ID is not sent either — nor under
+// enabled=false, which the test above checks only against the file. Last, a
 // TRACE_INSTALL_ID that is set but blank counts as unset (installIdSource()'s
 // "set and not blank"), so the file is used rather than an empty ID.
 static void testUsageReportingInstallIdOptOuts() {
@@ -605,6 +606,19 @@ static void testUsageReportingInstallIdOptOuts() {
 	// neither opt-out printed the first-run notice or wrote the settings file
 	assert(out.str().empty());
 	assert(!ifstream(settings.c_str()).good());
+
+	// the settings-file opt-out stops a pinned ID the same way (the test above
+	// only reaches enabled=false with the ID file, not with TRACE_INSTALL_ID)
+	assert(usage_reporting::makeDirectories(usage_reporting::configDirectory()));
+	ofstream(settings.c_str()) << "enabled=false\n";
+	setenv("TRACE_INSTALL_ID", "pinned-id", 1);
+	{
+		usage_reporting::UsageReporter reporter(out);
+		assert(reporter.disabledReason() == "config");
+		assert(reporter.installId().empty());
+	}
+	unsetenv("TRACE_INSTALL_ID");
+	remove(settings.c_str());
 
 	// with reporting on, a blank TRACE_INSTALL_ID falls through to the file
 	// instead of being sent as an empty (or whitespace) ID: the file is read
