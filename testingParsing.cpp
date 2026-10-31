@@ -130,6 +130,22 @@ static void testParser() {
 	assert(!parseEquation("4/0", result));   // division by zero is rejected
 	assert(!parseEquation("1+4/0", result)); // division by zero anywhere fails the whole equation
 	assert(!parseEquation("0/0", result));   // a zero numerator does not excuse a zero divisor
+	// the zero check is on the divisor's value, not on how it was typed, so
+	// every spelling of zero the input methods can produce is rejected too —
+	// including IEEE negative zero ("-0"), which compares equal to 0. (A zero
+	// divisor that slipped past that check would still be rejected, since the
+	// quotient is +/-infinity and fails the non-finite check after it; these
+	// pin the observable rejection, whichever check produces it.)
+	assert(!parseEquation("4/0.", result));  // trailing '.'
+	assert(!parseEquation("4/.0", result));  // leading '.'
+	assert(!parseEquation("4/0.000", result)); // an all-zero fraction
+	assert(!parseEquation("4/00", result));  // leading zeros
+	assert(!parseEquation("4/-0", result));  // a signed (negative) zero
+	assert(!parseEquation("8/2/0", result)); // a zero divisor later in a chain of divisions
+	// ...while a divisor that is merely small is an ordinary division, not a
+	// zero one: nothing rounds a near-zero literal down to zero first
+	assert(parseEquation("1/.001", result) && nearlyEqual(result, 1000));
+	assert(parseEquation("1/-.5", result) && result == -2);
 
 	// whitespace is skipped wherever it appears, so an equation made of
 	// nothing but whitespace is the empty-input case rather than a
@@ -232,6 +248,18 @@ static void testEngineInput() {
 	engine.inputDigit(0);
 	assert(!engine.evaluate(result));
 	assert(engine.equationText() == "6/0");
+
+	// a negative zero reached through the buttons ('-' as a sign, then 0) is
+	// rejected the same way, and the display still shows what was typed rather
+	// than a "-inf" result
+	engine.clear();
+	engine.inputDigit(6);
+	engine.inputOperator('/');
+	engine.inputOperator('-');
+	engine.inputDigit(0);
+	assert(!engine.evaluate(result));
+	assert(engine.equationText() == "6/-0");
+	assert(displayString(engine) == "6/-0___");
 
 	// out-of-range / unsupported input is ignored
 	engine.clear();
