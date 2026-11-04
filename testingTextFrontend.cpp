@@ -369,6 +369,15 @@ static void testContinueFromResult() {
 	vector<string> shown = displays(runSession("2*3=\n*2=\nq\n"));
 	assert(shown.at(1) == "6______");
 	assert(shown.at(2) == "12_____");
+
+	// what carries forward is the displayed, rounded result rather than the true
+	// 1/3 — the README's "1/3= shows 0.33333, and *3= then gives 0.99999". Keeping
+	// the unrounded value would print "= 1" here instead
+	string rounded = runSession("1/3=*3=\nq\n");
+	assert(contains(rounded, "= 0.33333\n"));
+	assert(contains(rounded, "= 0.99999\n"));
+	assert(rounded.find("= 0.33333\n") < rounded.find("= 0.99999\n"));
+	assert(displayAt(rounded, 1) == "0.99999");
 }
 
 // The display is a window onto the *end* of the equation, so a long equation
@@ -504,6 +513,24 @@ static void testUsageReportingInstallId() {
 	{
 		usage_reporting::UsageReporter reporter(out);
 		assert(reporter.installId() == id);
+	}
+
+	// the README's "Delete the file to reset it": the next run makes a new ID,
+	// which replaces the old one in the file. Comparing against the first ID is
+	// what shows it was regenerated rather than kept somewhere else
+	remove(installIdFile.c_str());
+	string reset;
+	{
+		usage_reporting::UsageReporter reporter(out);
+		reset = reporter.installId();
+	}
+	assert(reset.size() == 36);
+	assert(reset != id);
+	{
+		ifstream in(installIdFile.c_str());
+		string line;
+		getline(in, line);
+		assert(line == reset);
 	}
 
 	remove(installIdFile.c_str());

@@ -39,7 +39,10 @@ class CalculatorEngine {
 	                                 // (the digits since the last operator) already has one
 	void clear();                   // reset to the empty state
 	bool evaluate(double& result);  // evaluate; fails (display untouched) if the equation is
-	                                 // malformed or the result doesn't fit in SLOT_COUNT chars
+	                                 // malformed or the result doesn't fit in SLOT_COUNT chars.
+	                                 // result gets the unrounded value, but the equation becomes
+	                                 // the rounded display text, which is what later input
+	                                 // continues from
 
 	// Presentation queries — a frontend reads these to render the display.
 	// The slots are a window onto the *end* of the equation: once the equation

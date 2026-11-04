@@ -223,6 +223,10 @@ in its place instead — `12+3=` shows `15`, and typing `4` leaves just `4`, not
 so the same value stays on the display; the last operation is not repeated the
 way some calculators do.
 
+What carries forward is the result as the display shows it, not the unrounded
+value behind it, so rounding is permanent: `1/3=` shows `0.33333`, and `*3=` then
+gives `0.99999` rather than `1`.
+
 A `-` typed where a value is expected is a sign rather than a subtraction, so a
 negative number can be entered directly (`-` then `7` evaluates to `-7`) and a
 calculation can continue from a negative result — after `3 - 10` shows `-7`,
