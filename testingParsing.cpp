@@ -120,6 +120,21 @@ static void testParser() {
 	// parser's (see the matching engine-level case in testEngineInput)
 	assert(parseEquation("9999999*9999999*9999999", result) && result > 1e15);
 
+	// the limit on a literal is its value, not how many digits spell it. Leading
+	// zeros never grow the integer part, and a long fraction only ever adds less
+	// and less: past about 308 digits fracScale itself is infinite, but each
+	// digit is divided by it (a finite digit over infinity is just 0), so the
+	// non-finite check on the literal has nothing to reject
+	assert(parseEquation(string(400, '0') + "5", result) && result == 5);
+	assert(parseEquation("1." + string(400, '0'), result) && result == 1);
+	assert(parseEquation("0." + string(400, '3'), result) && nearlyEqual(result, 1.0 / 3.0));
+	// the far end of that fraction is where a nonzero literal does read as zero:
+	// the digit past the scale's overflow contributes nothing, so the "1" here is
+	// lost and the literal is exactly 0. That is the one case where a divisor
+	// that was typed as nonzero is rejected as a zero one (contrast "1/.001" below)
+	assert(parseEquation("0." + string(400, '0') + "1", result) && result == 0);
+	assert(!parseEquation("1/0." + string(400, '0') + "1", result));
+
 	// malformed input / unsupported characters
 	assert(!parseEquation("", result));      // empty
 	assert(!parseEquation("2+", result));    // trailing operator
@@ -216,6 +231,12 @@ static void testEngineInput() {
 	assert(engine.evaluate(result) && result == 15);
 	assert(engine.equationText() == "15");
 	assert(displayString(engine) == "15_____");
+
+	// the re-evaluation is still a successful evaluate(), so what is on the
+	// display is still a result: the next digit replaces it rather than
+	// appending to "15", exactly as it does after a single '='
+	engine.inputDigit(4);
+	assert(engine.equationText() == "4");
 
 	// re-evaluating a result that had to be rounded to fit carries that
 	// rounding into the value reported: the first evaluate() returns the true
@@ -837,6 +858,73 @@ static void testEngineInput() {
 	assert(engine.evaluate(result) && nearlyEqual(result, 2.000001));
 	assert(engine.equationText() == "2");
 	assert(displayString(engine) == "2______");
+
+	// the narrowest fraction that fits: a five-digit integer part leaves two
+	// slots, one for the '.' and one for a single rounded decimal. The other
+	// fractional cases here all have several decimals to spare
+	engine.clear();
+	for (int d = 1; d <= 5; d++) {
+		engine.inputDigit(d);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(6);
+	engine.inputDigit(7);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "12345.67+0");
+	assert(engine.evaluate(result) && nearlyEqual(result, 12345.67));
+	assert(engine.equationText() == "12345.7");
+	assert(displayString(engine) == "12345.7");
+
+	// the same single decimal with a sign in play arrives one integer digit
+	// sooner, because the sign takes one of the two spare slots
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	for (int d = 1; d <= 4; d++) {
+		engine.inputDigit(d);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	engine.inputDigit(6);
+	assert(engine.equationText() == "0-1234.56");
+	assert(engine.evaluate(result) && nearlyEqual(result, -1234.56));
+	assert(engine.equationText() == "-1234.6");
+	assert(displayString(engine) == "-1234.6");
+
+	// a carry out of that single decimal is the one case where the retry loop
+	// runs out of decimals altogether and takes its bare-integer fallback: "%.1f"
+	// of 99999.96 is "100000.0" (eight chars), so dropping to zero decimals gives
+	// a plain "100000". The "9.999999" carry above only ever drops one decimal
+	engine.clear();
+	for (int repeat = 0; repeat < 5; repeat++) {
+		engine.inputDigit(9);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(9);
+	engine.inputDigit(6);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "99999.96+0");
+	assert(engine.evaluate(result) && nearlyEqual(result, 99999.96));
+	assert(engine.equationText() == "100000");
+	assert(displayString(engine) == "100000_");
+
+	// the negative twin takes the same fallback one digit lower, and the sign the
+	// loop never sees is still put back on afterwards
+	engine.clear();
+	engine.inputDigit(0);
+	engine.inputOperator('-');
+	for (int repeat = 0; repeat < 4; repeat++) {
+		engine.inputDigit(9);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(9);
+	engine.inputDigit(6);
+	assert(engine.equationText() == "0-9999.96");
+	assert(engine.evaluate(result) && nearlyEqual(result, -9999.96));
+	assert(engine.equationText() == "-10000");
+	assert(displayString(engine) == "-10000_");
 
 	// when the integer part leaves no room for a '.' and a digit (six or seven
 	// digits wide), the fraction is not dropped but rounded into the integer:
