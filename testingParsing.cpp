@@ -49,12 +49,20 @@ static void testParser() {
 	assert(parseEquation("2+3*4", result) && result == 14);       // precedence
 	assert(parseEquation("2*3+4", result) && result == 10);       // precedence
 	assert(parseEquation("7-2-1", result) && result == 4);        // left-associative
+	// '-' has to be checked on its own: "+" is commutative and associative, so
+	// "2+3*4" says nothing about how '-' ranks against '*', and "7-2-1" says
+	// nothing about how it ranks against '+'
+	assert(parseEquation("10-2*3", result) && result == 4);       // (10-2)*3 would be 24
+	assert(parseEquation("10-2+3", result) && result == 11);      // 10-(2+3) would be 5
 	assert(parseEquation(" 5 + 6 ", result) && result == 11);     // whitespace tolerated
 
 	// division: true (floating-point) division, same precedence as '*'
 	assert(parseEquation("8/2", result) && result == 4);
 	assert(parseEquation("7/2", result) && result == 3.5);        // no longer truncated
+	// a zero on the left cannot show which operator ran first: (0-7)/2 is also
+	// -3.5. "10-8/2" is the case that can, where (10-8)/2 would be 1
 	assert(parseEquation("0-7/2", result) && result == -3.5);     // '/' binds tighter than '-'
+	assert(parseEquation("10-8/2", result) && result == 6);       // '/' binds tighter than '-'
 	assert(parseEquation("100/5/2", result) && result == 10);     // left-associative
 	assert(parseEquation("2+8/4", result) && result == 4);        // '/' binds tighter than '+'
 	assert(parseEquation("8/4+2", result) && result == 4);        // precedence, other order
@@ -161,6 +169,8 @@ static void testParser() {
 	// zero one: nothing rounds a near-zero literal down to zero first
 	assert(parseEquation("1/.001", result) && nearlyEqual(result, 1000));
 	assert(parseEquation("1/-.5", result) && result == -2);
+	// a divisor of exactly 1 is the next whole number up from the rejected zero
+	assert(parseEquation("6/1", result) && result == 6);
 
 	// whitespace is skipped wherever it appears, so an equation made of
 	// nothing but whitespace is the empty-input case rather than a
@@ -955,6 +965,56 @@ static void testEngineInput() {
 	engine.inputDigit(0);
 	assert(engine.evaluate(result) && nearlyEqual(result, 1234567.4));
 	assert(engine.equationText() == "1234567");
+
+	// an exact tie goes up in this branch even when the integer below it is even.
+	// 1234567.5 and 999999.5 above cannot show that, since their integer parts
+	// are odd and rounding half to even would also go up; 123456.5 would come
+	// out as "123456" that way, which is what snprintf's "%.0f" gives
+	engine.clear();
+	for (int d = 1; d <= 6; d++) {
+		engine.inputDigit(d);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "123456.5+0");
+	assert(engine.evaluate(result) && result == 123456.5);
+	assert(engine.equationText() == "123457");
+	assert(displayString(engine) == "123457_");
+
+	// a tie in the branch that keeps fractional digits is decided differently:
+	// that branch uses snprintf, which on glibc rounds an exact binary tie to the
+	// even digit, so 1234.125 goes down to "1234.12" where the rule above would
+	// have gone up, and 1234.375 goes up to "1234.38". This characterizes the
+	// current behavior rather than endorsing it (tracked in #90)
+	engine.clear();
+	for (int d = 1; d <= 4; d++) {
+		engine.inputDigit(d);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(1);
+	engine.inputDigit(2);
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "1234.125+0");
+	assert(engine.evaluate(result) && result == 1234.125);
+	assert(engine.equationText() == "1234.12");
+
+	engine.clear();
+	for (int d = 1; d <= 4; d++) {
+		engine.inputDigit(d);
+	}
+	engine.inputDecimalPoint();
+	engine.inputDigit(3);
+	engine.inputDigit(7);
+	engine.inputDigit(5);
+	engine.inputOperator('+');
+	engine.inputDigit(0);
+	assert(engine.equationText() == "1234.375+0");
+	assert(engine.evaluate(result) && result == 1234.375);
+	assert(engine.equationText() == "1234.38");
 
 	// that rounding can carry into a seventh digit and still fit: a six-digit
 	// integer part leaves exactly one slot, which is not enough for ".5", so
