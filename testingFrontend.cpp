@@ -41,8 +41,10 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <string>
+#include <vector>
 // Included before the rename so its system headers never see `main` as a
 // macro; the include guard makes the frontend's own #include a no-op.
 #include "usageReporting.h"
@@ -130,6 +132,22 @@ static void type(const char* characters) {
 	}
 }
 
+// Frees every texture loadMedia() created, without the renderer and window
+// close() would take down with them, so loadMedia() can be called again.
+static void destroyLoadedTextures() {
+	SDL_DestroyTexture(emptyT);
+	for (int digit = 0; digit < 10; digit++) {
+		SDL_DestroyTexture(digitTextures[digit]);
+	}
+	SDL_DestroyTexture(plusSignT);
+	SDL_DestroyTexture(minusSignT);
+	SDL_DestroyTexture(multiplyT);
+	SDL_DestroyTexture(divideT);
+	SDL_DestroyTexture(clearT);
+	SDL_DestroyTexture(equalsT);
+	SDL_DestroyTexture(decimalT);
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -211,6 +229,56 @@ static void testLoadTextureFailure() {
 	assert(loadTexture("Makefile") == NULL);
 }
 
+// loadTexture() reporting a missing asset is only useful if loadMedia() acts on
+// it, and the GUI's "Failed to load media" exit depends on that. Each PNG is
+// withheld in turn from a private copy of the assets, so a texture left out of
+// loadMedia()'s NULL checks fails here. The PNGs are found by listing the
+// directory, not by repeating their names, so a new asset is covered as soon as
+// it exists — and one loadMedia() never reads fails here as well, because
+// withholding it would change nothing. (Each trial's IMG_Load error is printed
+// to stderr; that is loadTexture's own diagnostic, not a test failure.)
+static void testLoadMediaFailsForAnyMissingAsset() {
+	namespace fs = std::filesystem;
+
+	const fs::path repository = fs::current_path();
+	char pattern[] = "/tmp/simple-calculator-assets-XXXXXX";
+	const fs::path assetCopy = mkdtemp(pattern);
+
+	vector<string> assets;
+	for (const fs::directory_entry& entry : fs::directory_iterator(repository)) {
+		if (entry.path().extension() == ".png") {
+			fs::copy_file(entry.path(), assetCopy / entry.path().filename());
+			assets.push_back(entry.path().filename().string());
+		}
+	}
+	assert(assets.size() == 18); // 10 digits + 7 glyphs + the empty slot
+
+	fs::current_path(assetCopy);
+
+	// with nothing withheld the copy loads, so a false below can only come from
+	// the withheld file and not from the copy being unusable
+	destroyLoadedTextures();
+	assert(loadMedia());
+
+	for (const string& asset : assets) {
+		const string withheld = asset + ".withheld";
+		fs::rename(asset, withheld);
+		destroyLoadedTextures();
+		assert(!loadMedia());
+		fs::rename(withheld, asset);
+	}
+
+	// the rest of the suite loads through relative paths and expects the real
+	// textures: go back, load them, and redraw the slots, which still point at
+	// the textures destroyed above until something refreshes them
+	fs::current_path(repository);
+	fs::remove_all(assetCopy);
+	destroyLoadedTextures();
+	assert(loadMedia());
+	syncDisplay();
+	testAllAssetsLoad();
+}
+
 // The hit test in Button::handleEvent() is only half of where a click lands; the
 // other half is the layout init() chooses. These checks pin that layout's
 // properties rather than its coordinates, so the buttons can be moved freely
@@ -263,6 +331,24 @@ static void testButtonLayout() {
 		outcomes.push_back(expected);
 	}
 	assert(outcomes.size() == clickableButtons.size());
+}
+
+// testButtonLayout() accepts any non-overlapping arrangement, but the display
+// row has to read as one line, left to right: slot order is character order, so
+// a slot moved out of line would misrepresent the value on screen even with
+// every glyph correct. Like the checks above these pin properties rather than
+// coordinates.
+static void testDisplayRowLayout() {
+	const Button& first = displaySlots[0];
+	for (int i = 1; i < CalculatorEngine::SLOT_COUNT; i++) {
+		assert(displaySlots[i].ypos == first.ypos);
+		assert(displaySlots[i].xpos > displaySlots[i - 1].xpos);
+	}
+
+	// the row sits above the keypad it reports on
+	for (Button* button : clickableButtons) {
+		assert(first.ypos + first.height <= button->ypos);
+	}
 }
 
 // The keyboard reaches the engine by first resolving a character to a button
@@ -636,7 +722,9 @@ int main() {
 	testButtonIdsAssignedByInit();
 	testAllAssetsLoad();
 	testLoadTextureFailure();
+	testLoadMediaFailsForAnyMissingAsset();
 	testButtonLayout();
+	testDisplayRowLayout();
 	testButtonIdForChar();
 	testChangeDisplayDispatch();
 	testTextInputEvents();
