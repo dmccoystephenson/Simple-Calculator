@@ -17,6 +17,7 @@
 #include <string>
 #include <cassert>
 #include <cmath>
+#include <climits>
 
 using namespace std;
 
@@ -210,6 +211,14 @@ static void testEngineInput() {
 	assert(engine.slotChar(engine.slotCount() - 1) == '\0'); // past the equation, still in range
 	assert(engine.slotChar(-1) == '\0');
 	assert(engine.slotChar(engine.slotCount()) == '\0');
+	// the same at the extremes of int. slotChar(-1) alone cannot pin the lower
+	// bound: without the index < 0 check it reads the byte just before the
+	// slots array, which in this suite's unoptimized build happens to be zero,
+	// so the assert above still passes. INT_MIN would instead read about 2 GB
+	// away from the engine object, so only the bounds check itself can return
+	// '\0' here
+	assert(engine.slotChar(INT_MIN) == '\0');
+	assert(engine.slotChar(INT_MAX) == '\0');
 
 	// evaluating shows the result on the display
 	assert(engine.evaluate(result) && result == 15);
