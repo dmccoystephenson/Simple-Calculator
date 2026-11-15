@@ -478,6 +478,104 @@ static void testUsageReportingNoticeAndOptOuts() {
 	remove(home.c_str());
 }
 
+// Which environment values count as an opt-out. The test above reaches only the
+// two spellings the notice names (TRACE_USAGE_REPORTING=off, DO_NOT_TRACK=1),
+// but the vendored client's environmentOptsOut() — checked before the settings
+// file is even read — accepts more: "off", "false", "no" and "0" for
+// TRACE_USAGE_REPORTING (the same set the settings file's enabled= takes), and
+// "1", "true" and "yes" for DO_NOT_TRACK, each trimmed and in any case. The
+// other direction matters as much: a value that only looks related (DO_NOT_TRACK=0,
+// TRACE_USAGE_REPORTING=on) must leave reporting on rather than off. These
+// checks characterize the client as vendored, so re-vendoring a trace_client.hpp
+// that narrows or widens either set fails here instead of passing silently.
+static void testUsageReportingEnvironmentSpellings() {
+	struct Case {
+		const char* reporting; // TRACE_USAGE_REPORTING, or NULL for unset
+		const char* doNotTrack; // DO_NOT_TRACK, or NULL for unset
+		bool optsOut;
+	};
+	const Case cases[] = {
+		{NULL, NULL, false},
+		{"off", NULL, true},
+		{"false", NULL, true},
+		{"no", NULL, true},
+		{"0", NULL, true},
+		{"OFF", NULL, true},
+		{" False\n", NULL, true}, // trimmed, like a settings-file value
+		{NULL, "1", true},
+		{NULL, "true", true},
+		{NULL, "yes", true},
+		{NULL, " YES ", true},
+		// lookalikes that are not opt-outs: reporting stays on
+		{"on", NULL, false},
+		{"true", NULL, false},
+		{"1", NULL, false}, // "1" opts out only for DO_NOT_TRACK
+		{"disabled", NULL, false},
+		{"", NULL, false},
+		{NULL, "0", false}, // DO_NOT_TRACK=0 means tracking is fine
+		{NULL, "no", false},
+		{NULL, "false", false},
+		{NULL, "off", false}, // "off" opts out only for TRACE_USAGE_REPORTING
+		{NULL, "", false},
+		// either variable alone is enough; the other cannot veto it
+		{"on", "1", true},
+		{"off", "0", true},
+	};
+	for (const Case& c : cases) {
+		if (c.reporting) setenv("TRACE_USAGE_REPORTING", c.reporting, 1);
+		else unsetenv("TRACE_USAGE_REPORTING");
+		if (c.doNotTrack) setenv("DO_NOT_TRACK", c.doNotTrack, 1);
+		else unsetenv("DO_NOT_TRACK");
+		assert(trace_client::environmentOptsOut() == c.optsOut);
+	}
+
+	// and through UsageReporter, the way the frontends use it: an alternate
+	// spelling is as silent as "off" (no notice, no settings file), while
+	// DO_NOT_TRACK=0 leaves reporting on and the first-run notice printed
+	char pattern[] = "/tmp/simple-calculator-env-spellings-XXXXXX";
+	string home = mkdtemp(pattern);
+	setenv("HOME", home.c_str(), 1);
+	setenv("XDG_CONFIG_HOME", (home + "/.config").c_str(), 1);
+	setenv("XDG_DATA_HOME", (home + "/.local/share").c_str(), 1);
+	setenv(usage_reporting::ENV_ENDPOINT, "http://127.0.0.1:9", 1);
+	unsetenv("TRACE_INSTALL_ID");
+	string settings = home + "/.config/Simple-Calculator/usage-reporting.conf";
+	string installIdFile = home + "/.local/share/simple-calculator/trace-install-id";
+
+	unsetenv("TRACE_USAGE_REPORTING");
+	setenv("DO_NOT_TRACK", "yes", 1);
+	ostringstream quiet;
+	{
+		usage_reporting::UsageReporter reporter(quiet);
+		assert(!reporter.isEnabled());
+		assert(reporter.disabledReason() == "environment");
+	}
+	assert(quiet.str().empty());
+	assert(!ifstream(settings.c_str()).good());
+
+	setenv("DO_NOT_TRACK", "0", 1);
+	ostringstream on;
+	{
+		usage_reporting::UsageReporter reporter(on);
+		assert(reporter.isEnabled());
+	}
+	assert(on.str().find("Usage reporting is on: Simple-Calculator") != string::npos);
+	assert(ifstream(settings.c_str()).good());
+
+	unsetenv("DO_NOT_TRACK");
+	unsetenv(usage_reporting::ENV_ENDPOINT);
+	setenv("TRACE_USAGE_REPORTING", "off", 1); // main()'s setting, for anything after
+
+	remove(installIdFile.c_str());
+	remove(settings.c_str());
+	remove((home + "/.local/share/simple-calculator").c_str());
+	remove((home + "/.local/share").c_str());
+	remove((home + "/.local").c_str());
+	remove((home + "/.config/Simple-Calculator").c_str());
+	remove((home + "/.config").c_str());
+	remove(home.c_str());
+}
+
 // The installation ID (usageReporting.h, installIdSource()): with reporting on,
 // the client keeps a random UUID in trace-install-id in the data directory
 // (XDG_DATA_HOME/simple-calculator) and reuses it; TRACE_INSTALL_ID is sent
@@ -938,6 +1036,7 @@ int main() {
 	testDisplayScrolls();
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
+	testUsageReportingEnvironmentSpellings();
 	testUsageReportingInstallId();
 	testUsageReportingInstallIdOptOuts();
 	testUsageReportingPaths();
