@@ -187,7 +187,8 @@ assets, so it can run anywhere the engine builds. It also covers usage
 reporting: the first-run notice and settings file, the quiet later runs, and
 the `enabled=false`, `TRACE_USAGE_REPORTING=off`, and `DO_NOT_TRACK=1`
 opt-outs (each of which also stops the installation ID, a pinned
-`TRACE_INSTALL_ID` included), a blank `TRACE_INSTALL_ID` falling back to the
+`TRACE_INSTALL_ID` included), which other environment values count as an
+opt-out and which leave reporting on, a blank `TRACE_INSTALL_ID` falling back to the
 ID file, where the settings file and installation ID live with and without
 `XDG_CONFIG_HOME`/`XDG_DATA_HOME` set, what happens when the settings file
 cannot be written, how a hand-edited settings file is
@@ -285,7 +286,9 @@ printed again on every run. To turn reporting off:
 - set `enabled=false` (or `off`, `no`, `0`, in any case) in that file, or
 - set `TRACE_USAGE_REPORTING=off` or `DO_NOT_TRACK=1` in the environment (this
   turns it off for every trace-reporting program, and nothing is printed or
-  written).
+  written). `TRACE_USAGE_REPORTING` also takes `false`, `no` or `0`, and
+  `DO_NOT_TRACK` also takes `true` or `yes`, in any case; any other value,
+  `DO_NOT_TRACK=0` included, leaves reporting on.
 
 The installation ID is a random UUID, made the first time reporting is on and
 kept in `trace-install-id` in `$XDG_DATA_HOME/simple-calculator/` (by default
