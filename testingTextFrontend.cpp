@@ -478,8 +478,73 @@ static void testUsageReportingNoticeAndOptOuts() {
 	remove(home.c_str());
 }
 
-// Which environment values count as an opt-out. The test above reaches only the
-// two spellings the notice names (TRACE_USAGE_REPORTING=off, DO_NOT_TRACK=1),
+// The README promises the first-run notice is "one line ... on stderr", and the
+// stream matters more for this frontend than for the GUI: stdout is the text
+// frontend's only data channel, the one a script greps for "= 15" (as CI's smoke
+// test does), so a notice printed there would land in the middle of every piped
+// first run. The test above hands UsageReporter a stream of its own, so it never
+// reaches the std::cerr default — nor whether main() constructs a reporter at
+// all. Here the frontend's real main() runs with reporting on and std::cerr
+// redirected alongside the other two streams, which pins both: the notice
+// appears on stderr exactly once, as a single line, and stdout is byte-for-byte
+// what a session with reporting off prints.
+static void testUsageReportingNoticeGoesToStderr() {
+	char pattern[] = "/tmp/simple-calculator-stderr-XXXXXX";
+	string home = mkdtemp(pattern);
+	setenv("HOME", home.c_str(), 1);
+	setenv("XDG_CONFIG_HOME", (home + "/.config").c_str(), 1);
+	setenv("XDG_DATA_HOME", (home + "/.local/share").c_str(), 1);
+	setenv(usage_reporting::ENV_ENDPOINT, "http://127.0.0.1:9", 1);
+	unsetenv("DO_NOT_TRACK");
+	unsetenv("TRACE_INSTALL_ID");
+	string settings = home + "/.config/Simple-Calculator/usage-reporting.conf";
+	string installIdFile = home + "/.local/share/simple-calculator/trace-install-id";
+	const string input = "12+3=\nq\n";
+
+	// the reference: what stdout looks like when reporting cannot print anything
+	setenv("TRACE_USAGE_REPORTING", "off", 1);
+	string offSession = runSession(input);
+	unsetenv("TRACE_USAGE_REPORTING");
+
+	// first run: the notice goes to stderr, once, as one line, and stdout is
+	// untouched by it
+	ostringstream firstErr;
+	streambuf* previousErr = cerr.rdbuf(firstErr.rdbuf());
+	string firstSession = runSession(input);
+	cerr.rdbuf(previousErr);
+	assert(firstSession == offSession);
+	assert(!contains(firstSession, "Usage reporting"));
+	const string notice = firstErr.str();
+	assert(notice.find("Usage reporting is on: Simple-Calculator") == 0);
+	assert(notice.find("Usage reporting is on", 1) == string::npos); // printed once
+	assert(notice.find('\n') == notice.size() - 1); // exactly one line
+	assert(contains(notice, settings));
+	assert(ifstream(settings.c_str()).good()); // main()'s reporter wrote the file
+
+	// a later run has the settings file, so stderr stays empty and stdout is
+	// still the same session
+	ostringstream secondErr;
+	previousErr = cerr.rdbuf(secondErr.rdbuf());
+	string secondSession = runSession(input);
+	cerr.rdbuf(previousErr);
+	assert(secondSession == offSession);
+	assert(secondErr.str().empty());
+
+	unsetenv(usage_reporting::ENV_ENDPOINT);
+	setenv("TRACE_USAGE_REPORTING", "off", 1); // main()'s setting, for anything after
+
+	remove(installIdFile.c_str());
+	remove(settings.c_str());
+	remove((home + "/.local/share/simple-calculator").c_str());
+	remove((home + "/.local/share").c_str());
+	remove((home + "/.local").c_str());
+	remove((home + "/.config/Simple-Calculator").c_str());
+	remove((home + "/.config").c_str());
+	remove(home.c_str());
+}
+
+// Which environment values count as an opt-out. testUsageReportingNoticeAndOptOuts
+// reaches only the two spellings the notice names (TRACE_USAGE_REPORTING=off, DO_NOT_TRACK=1),
 // but the vendored client's environmentOptsOut() — checked before the settings
 // file is even read — accepts more: "off", "false", "no" and "0" for
 // TRACE_USAGE_REPORTING (the same set the settings file's enabled= takes), and
@@ -1036,6 +1101,7 @@ int main() {
 	testDisplayScrolls();
 	testNoSingleCharacterDelete();
 	testUsageReportingNoticeAndOptOuts();
+	testUsageReportingNoticeGoesToStderr();
 	testUsageReportingEnvironmentSpellings();
 	testUsageReportingInstallId();
 	testUsageReportingInstallIdOptOuts();
