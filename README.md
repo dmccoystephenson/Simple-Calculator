@@ -184,7 +184,9 @@ how the display slots are rendered as text. It runs the frontend's real `main()`
 with `std::cin` and `std::cout` redirected to string buffers, so it exercises the
 dispatch as shipped rather than a copy of it. It needs neither SDL nor the PNG
 assets, so it can run anywhere the engine builds. It also covers usage
-reporting: the first-run notice and settings file, the quiet later runs, and
+reporting: the first-run notice and settings file, that the frontend's real
+`main()` prints that notice on stderr and leaves stdout unchanged, the quiet
+later runs, and
 the `enabled=false`, `TRACE_USAGE_REPORTING=off`, and `DO_NOT_TRACK=1`
 opt-outs (each of which also stops the installation ID, a pinned
 `TRACE_INSTALL_ID` included), which other environment values count as an
