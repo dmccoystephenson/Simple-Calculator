@@ -546,10 +546,11 @@ static void testUsageReportingNoticeGoesToStderr() {
 // Which environment values count as an opt-out. testUsageReportingNoticeAndOptOuts
 // reaches only the two spellings the notice names (TRACE_USAGE_REPORTING=off, DO_NOT_TRACK=1),
 // but the vendored client's environmentOptsOut() — checked before the settings
-// file is even read — accepts more: "off", "false", "no" and "0" for
-// TRACE_USAGE_REPORTING (the same set the settings file's enabled= takes), and
-// "1", "true" and "yes" for DO_NOT_TRACK, each trimmed and in any case. The
-// other direction matters as much: a value that only looks related (DO_NOT_TRACK=0,
+// file is even read — fails closed: TRACE_USAGE_REPORTING set to anything but
+// blank, "true", "on", "yes" or "1" opts out (so "off", "false", "disabled", a
+// typo), and so does DO_NOT_TRACK set to anything but blank, "0", "false", "off"
+// or "no", each trimmed and in any case. The other direction matters as much:
+// the values that clearly mean "keep reporting" (DO_NOT_TRACK=0,
 // TRACE_USAGE_REPORTING=on) must leave reporting on rather than off. These
 // checks characterize the client as vendored, so re-vendoring a trace_client.hpp
 // that narrows or widens either set fails here instead of passing silently.
@@ -571,16 +572,21 @@ static void testUsageReportingEnvironmentSpellings() {
 		{NULL, "true", true},
 		{NULL, "yes", true},
 		{NULL, " YES ", true},
-		// lookalikes that are not opt-outs: reporting stays on
+		// anything that does not clearly mean "on" is an opt-out too
+		{"disabled", NULL, true},
+		{"flase", NULL, true},
+		{NULL, "please", true},
+		// values that clearly keep reporting on, and blanks (= unset)
 		{"on", NULL, false},
 		{"true", NULL, false},
+		{" YES ", NULL, false},
 		{"1", NULL, false}, // "1" opts out only for DO_NOT_TRACK
-		{"disabled", NULL, false},
 		{"", NULL, false},
+		{"  ", NULL, false},
 		{NULL, "0", false}, // DO_NOT_TRACK=0 means tracking is fine
 		{NULL, "no", false},
 		{NULL, "false", false},
-		{NULL, "off", false}, // "off" opts out only for TRACE_USAGE_REPORTING
+		{NULL, "off", false},
 		{NULL, "", false},
 		// either variable alone is enough; the other cannot veto it
 		{"on", "1", true},
@@ -979,7 +985,9 @@ static void testUsageReportingNowhereToWrite() {
 // (whose endpoint is not observable from outside the client). These cases pin
 // what a hand-edited file is allowed to look like: comments and blank lines are
 // skipped, names and values are trimmed, the name is case-insensitive, and
-// "false", "off", "no" and "0" in any case all turn reporting off.
+// enabled= fails closed: only "true", "on", "yes" or "1" (any case) keep
+// reporting on; anything else, a blank value or a typo included, turns it off,
+// and so does a settings file that is there but cannot be read.
 static void testUsageReportingSettingsFile() {
 	char pattern[] = "/tmp/simple-calculator-settings-XXXXXX";
 	string directory = mkdtemp(pattern);
@@ -1000,19 +1008,27 @@ static void testUsageReportingSettingsFile() {
 	assert(written.enabled);
 	assert(written.endpoint.empty());
 
-	const char* offValues[] = {"false", "off", "no", "0", "FALSE", "Off"};
+	const char* offValues[] = {"false", "off", "no", "0", "FALSE", "Off", "maybe", "", "disabled"};
 	for (const char* value : offValues) {
 		ofstream(path.c_str()) << "enabled=" << value << "\n";
 		assert(!usage_reporting::readSettings(path).enabled);
 	}
-	// anything else leaves it on: an unreadable setting never turns reporting
-	// off by accident, and never turns it back on for someone who opted out
-	// with one of the spellings above
-	const char* onValues[] = {"true", "yes", "1", "maybe", ""};
+	// only a clear "on" keeps it on: an opt-out in words the program does not
+	// know is still an opt-out, never a reason to keep reporting
+	const char* onValues[] = {"true", "on", "yes", "1", "TRUE", " On "};
 	for (const char* value : onValues) {
 		ofstream(path.c_str()) << "enabled=" << value << "\n";
 		assert(usage_reporting::readSettings(path).enabled);
 	}
+
+	// a settings path that is there but cannot be read as a file (here a
+	// directory) turns reporting off rather than falling back to the defaults
+	string unreadable = directory + "/unreadable.conf";
+	assert(mkdir(unreadable.c_str(), 0755) == 0);
+	usage_reporting::Settings blocked = usage_reporting::readSettings(unreadable);
+	assert(blocked.exists);
+	assert(!blocked.enabled);
+	remove(unreadable.c_str());
 
 	// whitespace around the name and value, a capitalized name, a comment line
 	// that looks like a setting, and a line with no '=' are all tolerated; the

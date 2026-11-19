@@ -285,12 +285,17 @@ record that the line was shown, so if it cannot be written (there is no home
 directory, or the folder cannot be created) reporting stays on and the line is
 printed again on every run. To turn reporting off:
 
-- set `enabled=false` (or `off`, `no`, `0`, in any case) in that file, or
+- set `enabled=false` in that file, or
 - set `TRACE_USAGE_REPORTING=off` or `DO_NOT_TRACK=1` in the environment (this
   turns it off for every trace-reporting program, and nothing is printed or
-  written). `TRACE_USAGE_REPORTING` also takes `false`, `no` or `0`, and
-  `DO_NOT_TRACK` also takes `true` or `yes`, in any case; any other value,
-  `DO_NOT_TRACK=0` included, leaves reporting on.
+  written).
+
+Every switch fails closed. `enabled=` keeps reporting on only when it is `true`,
+`on`, `yes` or `1` (in any case); `false`, `off`, `no`, `0`, a blank value or a
+typo turn it off, and so does a settings file that is there but cannot be read
+(it is never overwritten). `TRACE_USAGE_REPORTING` set to anything but blank,
+`true`, `on`, `yes` or `1` turns reporting off, and so does `DO_NOT_TRACK` set
+to anything but blank, `0`, `false`, `off` or `no`.
 
 The installation ID is a random UUID, made the first time reporting is on and
 kept in `trace-install-id` in `$XDG_DATA_HOME/simple-calculator/` (by default
