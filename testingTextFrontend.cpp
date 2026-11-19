@@ -1097,6 +1097,38 @@ static void testUsageReportingVersion() {
 	assert(usage_reporting::version() != "unknown");
 }
 
+static void testNearMissOptOuts(const std::string &directory) {
+	std::string path = directory + "/near-miss.conf";
+	// Each used to be ignored, leaving enabled=true (or no enabled line) in charge.
+	const char *nearMisses[] = {
+		"enable=false\n",
+		"Enable=off\n",
+		"disabled=true\n",
+		"enabled=true\ndisable=yes\n",
+		"usage_reporting.enabled=false\n",
+		"usage-reporting=false\n",
+		"usageReporting=no\n",
+		"enabled=true\nusage_reporting.enable=false\n",
+	};
+	for (const char *nearMiss : nearMisses) {
+		std::ofstream(path.c_str()) << nearMiss;
+		assert(!usage_reporting::readSettings(path).enabled);
+	}
+	// near-miss names that say on, and unrelated lines, are not an opt-out
+	const char *onSettings[] = {
+		"enabled=true\nenable=yes\n",
+		"enabled=true\ndisabled=false\n",
+		"usage-reporting=on\n",
+		"enabled=true\nendpoint=http://127.0.0.1:9\n",
+		"# nothing set\n",
+	};
+	for (const char *onSetting : onSettings) {
+		std::ofstream(path.c_str()) << onSetting;
+		assert(usage_reporting::readSettings(path).enabled);
+	}
+	std::remove(path.c_str());
+}
+
 int main() {
 	// Every session runs the frontend's real main(), which would report usage
 	// to trace; the tests must never reach the real server.
@@ -1124,6 +1156,7 @@ int main() {
 	testUsageReportingPaths();
 	testUsageReportingNowhereToWrite();
 	testUsageReportingSettingsFile();
+	{ char nearMissDir[] = "/tmp/simple-calculator-near-miss-XXXXXX"; testNearMissOptOuts(mkdtemp(nearMissDir)); }
 	testUsageReportingEndpoint();
 	testUsageReportingVersion();
 
