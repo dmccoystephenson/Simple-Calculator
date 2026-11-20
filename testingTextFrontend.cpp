@@ -1097,10 +1097,21 @@ static void testUsageReportingVersion() {
 	assert(usage_reporting::version() != "unknown");
 }
 
-static void testNearMissOptOuts(const std::string &directory) {
-	std::string path = directory + "/near-miss.conf";
-	// Each used to be ignored, leaving enabled=true (or no enabled line) in charge.
-	const char *nearMisses[] = {
+// The README promises that an opt-out written under another name still counts
+// ("enable=false, usage_reporting.enabled=false or usage-reporting=false, and
+// disabled=true, even next to enabled=true"). Such lines used to be ignored, so
+// someone who wrote one in good faith kept reporting on. readSettings() collects
+// them across the whole file and applies them after the loop, so the order of
+// the lines must not matter: a near-miss above enabled=true wins as surely as
+// one below it, which is the case a "last line wins" rewrite would break. The
+// rest of the file's rules still apply to near-miss lines: names and values are
+// trimmed and case-insensitive, and a commented-out line is not an opt-out.
+static void testUsageReportingNearMissOptOuts() {
+	char pattern[] = "/tmp/simple-calculator-near-miss-XXXXXX";
+	string directory = mkdtemp(pattern);
+	string path = directory + "/near-miss.conf";
+
+	const char* nearMisses[] = {
 		"enable=false\n",
 		"Enable=off\n",
 		"disabled=true\n",
@@ -1109,24 +1120,50 @@ static void testNearMissOptOuts(const std::string &directory) {
 		"usage-reporting=false\n",
 		"usageReporting=no\n",
 		"enabled=true\nusage_reporting.enable=false\n",
+		// above enabled=true rather than below it: still off, because the
+		// near-miss is applied after every line has been read
+		"enable=false\nenabled=true\n",
+		"disabled=true\nenabled=true\n",
+		"usage-reporting=false\nenabled=true\n",
+		// trimmed and case-insensitive, like enabled= itself
+		"  ENABLE  =  OFF  \r\n",
+		"Disabled = Yes\n",
+		// usage_reporting= with no value is not a clear "on", so it fails closed
+		"usage-reporting=\n",
 	};
-	for (const char *nearMiss : nearMisses) {
-		std::ofstream(path.c_str()) << nearMiss;
-		assert(!usage_reporting::readSettings(path).enabled);
+	for (const char* nearMiss : nearMisses) {
+		ofstream(path.c_str()) << nearMiss;
+		usage_reporting::Settings settings = usage_reporting::readSettings(path);
+		assert(settings.exists);
+		assert(!settings.enabled);
 	}
-	// near-miss names that say on, and unrelated lines, are not an opt-out
-	const char *onSettings[] = {
+
+	// near-miss names that say on, a commented-out near-miss, and unrelated
+	// lines are not an opt-out
+	const char* onSettings[] = {
 		"enabled=true\nenable=yes\n",
 		"enabled=true\ndisabled=false\n",
 		"usage-reporting=on\n",
 		"enabled=true\nendpoint=http://127.0.0.1:9\n",
 		"# nothing set\n",
+		"# enable=false\nenabled=true\n",
+		"#disabled=true\n",
 	};
-	for (const char *onSetting : onSettings) {
-		std::ofstream(path.c_str()) << onSetting;
-		assert(usage_reporting::readSettings(path).enabled);
+	for (const char* onSetting : onSettings) {
+		ofstream(path.c_str()) << onSetting;
+		usage_reporting::Settings settings = usage_reporting::readSettings(path);
+		assert(settings.exists);
+		assert(settings.enabled);
 	}
-	std::remove(path.c_str());
+
+	// a near-miss turns reporting off without losing the file's endpoint=
+	ofstream(path.c_str()) << "endpoint=http://127.0.0.1:9\nenable=false\n";
+	usage_reporting::Settings withEndpoint = usage_reporting::readSettings(path);
+	assert(!withEndpoint.enabled);
+	assert(withEndpoint.endpoint == "http://127.0.0.1:9");
+
+	remove(path.c_str());
+	remove(directory.c_str());
 }
 
 int main() {
@@ -1156,7 +1193,7 @@ int main() {
 	testUsageReportingPaths();
 	testUsageReportingNowhereToWrite();
 	testUsageReportingSettingsFile();
-	{ char nearMissDir[] = "/tmp/simple-calculator-near-miss-XXXXXX"; testNearMissOptOuts(mkdtemp(nearMissDir)); }
+	testUsageReportingNearMissOptOuts();
 	testUsageReportingEndpoint();
 	testUsageReportingVersion();
 
